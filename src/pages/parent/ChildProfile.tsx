@@ -17,7 +17,7 @@ export default function ChildProfile() {
         <main className="container py-6">
           <p className="text-destructive">Child not found: {childId}</p>
           <button onClick={() => navigate('/parent')} className="btn-secondary mt-4">
-            [Back to Dashboard]
+            Back to Dashboard
           </button>
         </main>
       </div>
@@ -31,7 +31,6 @@ export default function ChildProfile() {
       <main className="container py-6">
         <h2 className="text-xl font-medium mb-6">Child Profile</h2>
         
-        {/* Profile Card */}
         <div className="border border-border rounded-sm p-6 mb-6">
           <div className="flex items-start gap-6">
             <PhotoPlaceholder size="lg" className="w-24 h-24" />
@@ -49,7 +48,6 @@ export default function ChildProfile() {
           </div>
         </div>
 
-        {/* Guardians Section */}
         <div className="mb-6">
           <h4 className="text-lg font-medium mb-3">Authorized Guardians</h4>
           <div className="border border-border rounded-sm divide-y divide-border">
@@ -71,7 +69,6 @@ export default function ChildProfile() {
           </div>
         </div>
 
-        {/* Medical/Allergies Section */}
         <div className="mb-6">
           <h4 className="text-lg font-medium mb-3">Medical Information</h4>
           <div className="border border-border rounded-sm p-4">
@@ -83,7 +80,6 @@ export default function ChildProfile() {
           </div>
         </div>
 
-        {/* Emergency Contact */}
         <div className="mb-6">
           <h4 className="text-lg font-medium mb-3">Emergency Contact</h4>
           <div className="border border-border rounded-sm p-4">
@@ -96,7 +92,7 @@ export default function ChildProfile() {
         </div>
 
         <button onClick={() => navigate('/parent')} className="btn-secondary">
-          [Back to Dashboard]
+          Back to Dashboard
         </button>
       </main>
 

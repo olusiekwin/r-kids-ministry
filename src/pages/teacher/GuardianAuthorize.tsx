@@ -22,7 +22,7 @@ export default function GuardianAuthorize() {
         <main className="container py-6">
           <p className="text-destructive">Child not found: {childId}</p>
           <button onClick={() => navigate('/teacher')} className="btn-secondary mt-4">
-            [Back to Dashboard]
+            Back to Dashboard
           </button>
         </main>
       </div>
@@ -66,7 +66,6 @@ export default function GuardianAuthorize() {
       <main className="container py-6">
         <h2 className="text-xl font-medium mb-6">Guardian Authorization</h2>
         
-        {/* Child Info */}
         <div className="card-minimal mb-6">
           <p className="text-sm text-muted-foreground">Child:</p>
           <p className="text-lg font-medium">{child.name} ({child.registrationId})</p>
@@ -75,7 +74,6 @@ export default function GuardianAuthorize() {
 
         {!otpStep ? (
           <>
-            {/* Guardian List */}
             <div className="mb-6">
               <p className="text-sm font-medium mb-3">Guardians authorized:</p>
               
@@ -134,7 +132,7 @@ export default function GuardianAuthorize() {
               disabled={!selectedGuardian}
               className="btn-primary w-full md:w-auto"
             >
-              [Proceed with OTP]
+              Proceed with OTP
             </button>
           </>
         ) : (
@@ -169,7 +167,7 @@ export default function GuardianAuthorize() {
                 disabled={loading}
                 className="btn-primary"
               >
-                {loading ? 'Verifying...' : '[Confirm Release]'}
+                {loading ? 'Verifying...' : 'Confirm Release'}
               </button>
               <button
                 onClick={() => {
@@ -179,7 +177,7 @@ export default function GuardianAuthorize() {
                 }}
                 className="btn-ghost"
               >
-                [Back to Guardian Selection]
+                Back to Guardian Selection
               </button>
             </div>
 
@@ -192,7 +190,7 @@ export default function GuardianAuthorize() {
 
       <div className="fixed-bottom-action md:hidden">
         <button onClick={() => navigate('/teacher')} className="btn-secondary w-full">
-          [Cancel]
+          Cancel
         </button>
       </div>
 

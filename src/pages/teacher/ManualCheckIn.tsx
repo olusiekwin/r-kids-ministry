@@ -20,7 +20,6 @@ export default function ManualCheckIn() {
     setLoading(true);
     setError('');
     
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     setOtpSent(true);
@@ -36,7 +35,6 @@ export default function ManualCheckIn() {
     setLoading(true);
     setError('');
     
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     if (otp === '123456') {
@@ -77,7 +75,7 @@ export default function ManualCheckIn() {
               disabled={loading}
               className="btn-primary w-full"
             >
-              {loading ? 'Sending...' : '[Send OTP]'}
+              {loading ? 'Sending...' : 'Send OTP'}
             </button>
           </div>
         ) : (
@@ -109,7 +107,7 @@ export default function ManualCheckIn() {
                 disabled={loading}
                 className="btn-primary"
               >
-                {loading ? 'Verifying...' : '[Verify OTP]'}
+                {loading ? 'Verifying...' : 'Verify OTP'}
               </button>
               <button
                 onClick={() => {
@@ -119,7 +117,7 @@ export default function ManualCheckIn() {
                 }}
                 className="btn-ghost"
               >
-                [Enter Different Parent ID]
+                Enter Different Parent ID
               </button>
             </div>
 
@@ -132,7 +130,7 @@ export default function ManualCheckIn() {
 
       <div className="fixed-bottom-action md:hidden">
         <button onClick={() => navigate('/teacher')} className="btn-secondary w-full">
-          [Back to Dashboard]
+          Back to Dashboard
         </button>
       </div>
 

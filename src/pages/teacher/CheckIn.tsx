@@ -75,10 +75,10 @@ export default function CheckIn() {
             </p>
             <div className="flex flex-col gap-2 max-w-md mx-auto">
               <button onClick={simulateSuccessfulScan} className="btn-primary">
-                [Simulate Successful Scan]
+                Simulate Successful Scan
               </button>
               <button onClick={stopScanner} className="btn-secondary">
-                [Stop Scanner]
+                Stop Scanner
               </button>
             </div>
           </div>
@@ -88,7 +88,7 @@ export default function CheckIn() {
               Tap below to open camera and scan QR code
             </p>
             <button onClick={startScanner} className="btn-primary">
-              [Scan QR]
+              Scan QR
             </button>
           </div>
         )}
@@ -98,14 +98,14 @@ export default function CheckIn() {
             onClick={() => navigate('/teacher/manual-checkin')}
             className="btn-ghost"
           >
-            [Use Manual Check-in Instead]
+            Use Manual Check-in Instead
           </button>
         </div>
       </main>
 
       <div className="fixed-bottom-action md:hidden">
         <button onClick={() => navigate('/teacher')} className="btn-secondary w-full">
-          [Back to Dashboard]
+          Back to Dashboard
         </button>
       </div>
 

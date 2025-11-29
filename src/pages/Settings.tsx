@@ -19,7 +19,6 @@ export default function Settings() {
       <main className="container py-6">
         <h2 className="text-xl font-medium mb-6">Settings & Support</h2>
         
-        {/* Account Info */}
         <div className="border border-border rounded-sm p-4 mb-6">
           <h3 className="text-lg font-medium mb-3">Account</h3>
           <div className="space-y-2 text-sm">
@@ -29,36 +28,33 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Settings Links */}
         <div className="space-y-2 mb-6">
-          <button className="btn-ghost w-full text-left justify-start">
-            [Change Password]
+          <button className="btn-ghost w-full text-left">
+            Change Password
           </button>
-          <button className="btn-ghost w-full text-left justify-start">
-            [MFA Settings]
+          <button className="btn-ghost w-full text-left">
+            MFA Settings
           </button>
-          <button className="btn-ghost w-full text-left justify-start">
-            [Notification Preferences]
+          <button className="btn-ghost w-full text-left">
+            Notification Preferences
           </button>
         </div>
 
-        {/* Support Links */}
         <div className="border-t border-border pt-6 mb-6">
           <h3 className="text-lg font-medium mb-3">Support</h3>
           <div className="space-y-2">
-            <button className="btn-ghost w-full text-left justify-start">
-              [Contact Support]
+            <button className="btn-ghost w-full text-left">
+              Contact Support
             </button>
-            <button className="btn-ghost w-full text-left justify-start">
-              [System Status]
+            <button className="btn-ghost w-full text-left">
+              System Status
             </button>
-            <button className="btn-ghost w-full text-left justify-start">
-              [Help Documentation]
+            <button className="btn-ghost w-full text-left">
+              Help Documentation
             </button>
           </div>
         </div>
 
-        {/* System Info */}
         <div className="border border-border rounded-sm p-4 mb-6">
           <h3 className="text-lg font-medium mb-3">System Information</h3>
           <div className="space-y-1 text-sm text-muted-foreground">
@@ -68,12 +64,11 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Logout */}
         <button
           onClick={handleLogout}
           className="btn-destructive w-full md:w-auto"
         >
-          [Logout]
+          Logout
         </button>
       </main>
 

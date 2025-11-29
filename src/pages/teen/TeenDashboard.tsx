@@ -2,7 +2,6 @@ import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
 import { useAuth } from '@/contexts/AuthContext';
 
-// Mock data for teen
 const mockTeenAttendance = [
   { date: '2025-01-26', status: 'present', checkInTime: '09:30' },
   { date: '2025-01-19', status: 'present', checkInTime: '09:25' },
@@ -28,7 +27,6 @@ export default function TeenDashboard() {
           Welcome, {user?.name}. View your attendance record below.
         </p>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="border border-border rounded-sm p-4">
             <p className="text-sm text-muted-foreground">Attendance Rate</p>
@@ -40,7 +38,6 @@ export default function TeenDashboard() {
           </div>
         </div>
 
-        {/* Group Info */}
         <div className="border border-border rounded-sm p-4 mb-6">
           <p className="text-sm text-muted-foreground">Your Group</p>
           <p className="text-lg font-medium">Trendsetters</p>
@@ -49,7 +46,6 @@ export default function TeenDashboard() {
           </p>
         </div>
 
-        {/* Recent Attendance */}
         <div className="mb-6">
           <h3 className="text-lg font-medium mb-3">Recent Attendance</h3>
           <div className="border border-border rounded-sm divide-y divide-border">

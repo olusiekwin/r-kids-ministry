@@ -8,6 +8,10 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import CreateParent from "./pages/admin/CreateParent";
+import ManageGuardians from "./pages/admin/ManageGuardians";
+import Groups from "./pages/admin/Groups";
+import AuditLog from "./pages/admin/AuditLog";
 import Reports from "./pages/admin/Reports";
 import TeacherDashboard from "./pages/teacher/TeacherDashboard";
 import CheckIn from "./pages/teacher/CheckIn";
@@ -36,6 +40,10 @@ const App = () => (
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/parents" element={<AdminDashboard />} />
+            <Route path="/admin/create-parent" element={<CreateParent />} />
+            <Route path="/admin/guardians" element={<ManageGuardians />} />
+            <Route path="/admin/groups" element={<Groups />} />
+            <Route path="/admin/audit-log" element={<AuditLog />} />
             <Route path="/admin/reports" element={<Reports />} />
             
             {/* Teacher Routes */}

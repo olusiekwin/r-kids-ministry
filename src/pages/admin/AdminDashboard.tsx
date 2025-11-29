@@ -47,21 +47,24 @@ export default function AdminDashboard() {
       <main className="container py-6">
         <h2 className="text-xl font-medium mb-6">Admin Dashboard</h2>
         
-        {/* Action Buttons */}
         <div className="flex flex-wrap gap-2 mb-6">
-          <button className="btn-primary">[Create Parent]</button>
-          <button className="btn-secondary">[Manage Guardians]</button>
-          <button className="btn-secondary">[Groups]</button>
-          <button 
-            onClick={() => navigate('/admin/reports')}
-            className="btn-secondary"
-          >
-            [Reports]
+          <button onClick={() => navigate('/admin/create-parent')} className="btn-primary">
+            Create Parent
           </button>
-          <button className="btn-secondary">[Audit Log]</button>
+          <button onClick={() => navigate('/admin/guardians')} className="btn-secondary">
+            Manage Guardians
+          </button>
+          <button onClick={() => navigate('/admin/groups')} className="btn-secondary">
+            Groups
+          </button>
+          <button onClick={() => navigate('/admin/reports')} className="btn-secondary">
+            Reports
+          </button>
+          <button onClick={() => navigate('/admin/audit-log')} className="btn-secondary">
+            Audit Log
+          </button>
         </div>
 
-        {/* Parents Table */}
         <div className="border border-border rounded-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -110,8 +113,8 @@ export default function AdminDashboard() {
                       </span>
                     </td>
                     <td className="table-cell">
-                      <button className="btn-ghost text-xs py-1 px-2">[View]</button>
-                      <button className="btn-ghost text-xs py-1 px-2">[Edit]</button>
+                      <button className="btn-ghost btn-sm">View</button>
+                      <button className="btn-ghost btn-sm">Edit</button>
                     </td>
                   </tr>
                 ))}
@@ -119,7 +122,6 @@ export default function AdminDashboard() {
             </table>
           </div>
 
-          {/* Pagination */}
           <div className="flex items-center justify-between p-4 border-t border-border">
             <span className="text-sm text-muted-foreground">
               Page {currentPage} of {totalPages}
@@ -128,16 +130,16 @@ export default function AdminDashboard() {
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="btn-ghost text-sm py-1"
+                className="btn-ghost btn-sm"
               >
-                [Previous]
+                Previous
               </button>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="btn-ghost text-sm py-1"
+                className="btn-ghost btn-sm"
               >
-                [Next]
+                Next
               </button>
             </div>
           </div>
