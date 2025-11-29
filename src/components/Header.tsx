@@ -24,8 +24,8 @@ export function Header() {
         {user && (
           <div className="flex items-center gap-4">
             <span className="text-sm hidden md:block">{user.name}</span>
-            <button onClick={handleLogout} className="btn-ghost text-sm">
-              [Logout]
+            <button onClick={handleLogout} className="btn-ghost btn-sm">
+              Logout
             </button>
           </div>
         )}

@@ -3,7 +3,6 @@ import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
 import { mockChildren } from '@/data/mockData';
 
-// Mock attendance history for parent's children
 const mockChildAttendance = [
   { date: '2025-01-26', childId: 'RS073/01', childName: 'Maria', status: 'present', checkInTime: '09:15', checkOutTime: '11:30' },
   { date: '2025-01-26', childId: 'RS073/02', childName: 'David', status: 'present', checkInTime: '09:18', checkOutTime: '11:32' },
@@ -24,7 +23,6 @@ export default function ParentAttendance() {
       <main className="container py-6">
         <h2 className="text-xl font-medium mb-6">Attendance History</h2>
         
-        {/* Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {myChildren.map((child) => {
             const childRecords = mockChildAttendance.filter(r => r.childId === child.registrationId);
@@ -41,7 +39,6 @@ export default function ParentAttendance() {
           })}
         </div>
 
-        {/* Attendance Table */}
         <div className="border border-border rounded-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -83,7 +80,7 @@ export default function ParentAttendance() {
         </div>
 
         <button onClick={() => navigate('/parent')} className="btn-secondary mt-6">
-          [Back to Dashboard]
+          Back to Dashboard
         </button>
       </main>
 

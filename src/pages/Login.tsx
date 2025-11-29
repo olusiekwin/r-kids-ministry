@@ -76,7 +76,7 @@ export default function Login() {
               disabled={loading || mfaCode.length !== 6}
               className="btn-primary w-full"
             >
-              {loading ? 'Verifying...' : '[Verify]'}
+              {loading ? 'Verifying...' : 'Verify'}
             </button>
           </form>
 
@@ -129,7 +129,7 @@ export default function Login() {
             disabled={loading || !email || !password}
             className="btn-primary w-full"
           >
-            {loading ? 'Signing in...' : '[Login]'}
+            {loading ? 'Signing in...' : 'Login'}
           </button>
         </form>
 
@@ -137,7 +137,7 @@ export default function Login() {
           onClick={() => navigate('/')}
           className="btn-ghost w-full mt-4"
         >
-          [Back to Role Selection]
+          Back to Role Selection
         </button>
       </div>
     </div>

@@ -23,32 +23,30 @@ export default function Onboarding() {
             onClick={() => handleRoleSelect('admin')}
             className="btn-secondary py-6"
           >
-            [Admin]
+            Admin
           </button>
           <button
             onClick={() => handleRoleSelect('teacher')}
             className="btn-secondary py-6"
           >
-            [Teacher]
+            Teacher
           </button>
           <button
             onClick={() => handleRoleSelect('parent')}
             className="btn-secondary py-6"
           >
-            [Parent]
+            Parent
           </button>
           <button
             onClick={() => handleRoleSelect('teen')}
             className="btn-secondary py-6"
           >
-            [Teen]
+            Teen
           </button>
         </div>
 
         <p className="text-xs text-muted-foreground text-center mt-8">
-          Demo credentials: [role]@rkids.church / password123
-          <br />
-          MFA code: 123456
+          Demo: [role]@rkids.church / password123 / MFA: 123456
         </p>
       </div>
     </div>

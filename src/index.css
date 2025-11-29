@@ -4,7 +4,6 @@
 
 @layer base {
   :root {
-    /* R KIDS - Monochrome Utility Design System */
     --background: 0 0% 100%;
     --foreground: 0 0% 0%;
 
@@ -120,7 +119,7 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-primary text-primary-foreground px-4 py-3 text-sm font-medium rounded-sm border border-primary hover:bg-foreground/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-primary text-primary-foreground px-4 py-3 text-sm font-medium rounded-sm border border-primary hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-secondary {
@@ -132,11 +131,19 @@
   }
 
   .btn-destructive {
-    @apply bg-destructive text-destructive-foreground px-4 py-3 text-sm font-medium rounded-sm border border-destructive hover:opacity-90 transition-colors;
+    @apply bg-destructive text-destructive-foreground px-4 py-3 text-sm font-medium rounded-sm border border-destructive hover:opacity-90 transition-opacity;
   }
 
   .btn-success {
-    @apply bg-success text-success-foreground px-4 py-3 text-sm font-medium rounded-sm border border-success hover:opacity-90 transition-colors;
+    @apply bg-success text-success-foreground px-4 py-3 text-sm font-medium rounded-sm border border-success hover:opacity-90 transition-opacity;
+  }
+
+  .btn-outline {
+    @apply bg-transparent text-foreground px-4 py-3 text-sm font-medium rounded-sm border border-foreground hover:bg-foreground hover:text-background transition-colors;
+  }
+
+  .btn-sm {
+    @apply px-3 py-2 text-xs;
   }
 
   .input-field {
@@ -177,5 +184,9 @@
 
   .mobile-nav {
     @apply fixed bottom-0 left-0 right-0 bg-background border-t border-border flex justify-around py-2;
+  }
+
+  .link-text {
+    @apply text-sm underline hover:no-underline cursor-pointer;
   }
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
 import { mockAttendance, groups } from '@/data/mockData';
@@ -7,6 +8,7 @@ import { GroupName } from '@/types';
 type FilterPeriod = 'daily' | 'monthly' | 'quarterly' | 'annual';
 
 export default function Reports() {
+  const navigate = useNavigate();
   const [period, setPeriod] = useState<FilterPeriod>('daily');
   const [selectedGroup, setSelectedGroup] = useState<GroupName | 'all'>('all');
 
@@ -32,7 +34,6 @@ export default function Reports() {
       <main className="container py-6">
         <h2 className="text-xl font-medium mb-6">Attendance Report</h2>
         
-        {/* Filters */}
         <div className="flex flex-wrap gap-2 mb-6">
           {(['daily', 'monthly', 'quarterly', 'annual'] as FilterPeriod[]).map((p) => (
             <button
@@ -40,12 +41,11 @@ export default function Reports() {
               onClick={() => setPeriod(p)}
               className={period === p ? 'btn-primary' : 'btn-secondary'}
             >
-              [{p.charAt(0).toUpperCase() + p.slice(1)}]
+              {p.charAt(0).toUpperCase() + p.slice(1)}
             </button>
           ))}
         </div>
 
-        {/* Group Filter */}
         <div className="mb-6">
           <label className="block text-sm mb-2">Filter by Group:</label>
           <select
@@ -60,7 +60,6 @@ export default function Reports() {
           </select>
         </div>
 
-        {/* Table */}
         <div className="border border-border rounded-sm overflow-hidden mb-6">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -88,16 +87,18 @@ export default function Reports() {
           </div>
         </div>
 
-        {/* Export Actions */}
         <div className="flex flex-wrap gap-2">
           <button onClick={() => handleExport('csv')} className="btn-secondary">
-            [Export: CSV]
+            Export: CSV
           </button>
           <button onClick={() => handleExport('excel')} className="btn-secondary">
-            [Export: Excel]
+            Export: Excel
           </button>
           <button onClick={handlePrint} className="btn-secondary">
-            [Print]
+            Print
+          </button>
+          <button onClick={() => navigate('/admin')} className="btn-secondary">
+            Back to Dashboard
           </button>
         </div>
       </main>
