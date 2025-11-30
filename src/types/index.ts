@@ -22,9 +22,15 @@ export interface Child {
   registrationId: string;
   name: string;
   age: number;
+  dateOfBirth: string;
   group: GroupName;
   guardians: Guardian[];
   parentId: string;
+  status: 'active' | 'pending' | 'rejected';
+  photoUrl?: string;
+  gender?: 'Male' | 'Female' | 'Other';
+  submittedBy?: 'parent' | 'teacher';
+  submittedAt?: string;
 }
 
 export interface Parent {
@@ -49,4 +55,15 @@ export interface CheckInRecord {
   checkedInAt: string;
   checkedInBy: string;
   method: 'qr' | 'otp' | 'manual';
+}
+
+export interface Notification {
+  id: string;
+  type: 'approval' | 'checkin' | 'checkout' | 'pickup' | 'rejection' | 'system';
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+  actionUrl?: string;
+  metadata?: Record<string, any>;
 }

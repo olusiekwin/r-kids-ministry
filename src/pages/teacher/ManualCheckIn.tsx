@@ -49,25 +49,32 @@ export default function ManualCheckIn() {
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Header />
       
-      <main className="container py-6">
-        <h2 className="text-xl font-medium mb-6">Manual Check-In</h2>
+      <main className="container py-8">
+        <div className="max-w-md mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-semibold mb-2">Manual Check-In</h1>
+            <p className="text-muted-foreground">Enter Parent ID to send OTP</p>
+          </div>
         
         {!otpSent ? (
-          <div className="max-w-md">
-            <div className="mb-4">
-              <label className="block text-sm mb-1">Enter Parent ID:</label>
+            <div className="border border-border rounded-md p-8 bg-background shadow-sm">
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-foreground">Enter Parent ID:</label>
               <input
                 type="text"
                 value={parentId}
                 onChange={(e) => setParentId(e.target.value.toUpperCase())}
                 placeholder="e.g., RS073"
-                className="input-field font-mono"
+                    className="input-field font-mono w-full"
                 autoFocus
               />
             </div>
 
             {error && (
-              <p className="text-sm text-destructive mb-4">{error}</p>
+                  <div className="bg-muted border border-border rounded-md p-4">
+                    <p className="text-sm text-foreground">{error}</p>
+                  </div>
             )}
 
             <button
@@ -77,35 +84,39 @@ export default function ManualCheckIn() {
             >
               {loading ? 'Sending...' : 'Send OTP'}
             </button>
+              </div>
           </div>
         ) : (
-          <div className="max-w-md">
-            <p className="text-sm text-muted-foreground mb-4">
+            <div className="border border-border rounded-md p-8 bg-background shadow-sm">
+              <div className="space-y-6">
+                <p className="text-sm text-muted-foreground text-center">
               OTP sent to registered phone/email for {parentId}
             </p>
             
-            <div className="mb-4">
-              <label className="block text-sm mb-1">Enter OTP:</label>
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-foreground">Enter OTP:</label>
               <input
                 type="text"
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="Enter 6-digit code"
-                className="input-field text-center text-lg tracking-widest font-mono"
+                    placeholder="000000"
+                    className="input-field text-center text-2xl tracking-widest font-mono w-full"
                 maxLength={6}
                 autoFocus
               />
             </div>
 
             {error && (
-              <p className="text-sm text-destructive mb-4">{error}</p>
+                  <div className="bg-muted border border-border rounded-md p-4">
+                    <p className="text-sm text-foreground">{error}</p>
+                  </div>
             )}
 
-            <div className="flex flex-col gap-2">
+                <div className="space-y-3">
               <button
                 onClick={handleVerifyOTP}
-                disabled={loading}
-                className="btn-primary"
+                    disabled={loading || otp.length !== 6}
+                    className="btn-primary w-full"
               >
                 {loading ? 'Verifying...' : 'Verify OTP'}
               </button>
@@ -115,17 +126,21 @@ export default function ManualCheckIn() {
                   setOtp('');
                   setError('');
                 }}
-                className="btn-ghost"
+                    className="btn-ghost w-full text-sm"
               >
                 Enter Different Parent ID
               </button>
             </div>
 
-            <p className="text-xs text-muted-foreground mt-4">
-              Demo OTP: 123456
+                <div className="pt-4 border-t border-border">
+                  <p className="text-xs text-muted-foreground text-center">
+                    Demo OTP: <span className="font-mono font-semibold">123456</span>
             </p>
+                </div>
+              </div>
           </div>
         )}
+        </div>
       </main>
 
       <div className="fixed-bottom-action md:hidden">

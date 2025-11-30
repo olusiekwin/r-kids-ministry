@@ -1,105 +1,88 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
+import { QRCodeScanner } from '@/components/QRCodeScanner';
 
 export default function CheckIn() {
   const navigate = useNavigate();
-  const [scanning, setScanning] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [showScanner, setShowScanner] = useState(false);
+  const [scannedCode, setScannedCode] = useState<string | null>(null);
 
-  const startScanner = async () => {
+  const handleScanSuccess = (decodedText: string) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
-      });
+      // Parse QR code data
+      const qrData = JSON.parse(decodedText);
       
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setScanning(true);
+      if (qrData.type === 'checkin' && qrData.childId) {
+        setScannedCode(qrData.childId);
+        setTimeout(() => {
+          navigate(`/teacher/authorize/${qrData.childId}`);
+        }, 1000);
+      } else {
+        // Fallback: try to use the decoded text as child ID
+        setScannedCode(decodedText);
+        setTimeout(() => {
+          navigate(`/teacher/authorize/${decodedText}`);
+        }, 1000);
       }
     } catch (err) {
-      alert('Camera access denied. Please enable camera permissions.');
+      // If not JSON, treat as direct child ID
+      setScannedCode(decodedText);
+      setTimeout(() => {
+        navigate(`/teacher/authorize/${decodedText}`);
+      }, 1000);
     }
   };
 
-  const stopScanner = () => {
-    if (videoRef.current?.srcObject) {
-      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-      tracks.forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setScanning(false);
+  const handleScanError = (error: string) => {
+    alert(`Scanning error: ${error}`);
   };
-
-  const simulateSuccessfulScan = () => {
-    stopScanner();
-    setResult('RS073/01');
-    setTimeout(() => {
-      navigate('/teacher/authorize/RS073/01');
-    }, 1500);
-  };
-
-  useEffect(() => {
-    return () => {
-      stopScanner();
-    };
-  }, []);
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Header />
       
-      <main className="container py-6">
-        <h2 className="text-xl font-medium mb-6">QR Code Check-In</h2>
-        
-        {result ? (
-          <div className="text-center py-8">
-            <p className="text-lg font-medium mb-2">QR Code Scanned</p>
-            <p className="font-mono text-xl">{result}</p>
-            <p className="text-sm text-muted-foreground mt-2">Redirecting to authorization...</p>
+      <main className="container py-8">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-semibold mb-2">QR Code Check-In</h1>
+            <p className="text-muted-foreground">Scan parent's QR code to check in child</p>
           </div>
-        ) : scanning ? (
-          <div className="space-y-4">
-            <div className="border border-border rounded-sm overflow-hidden aspect-square max-w-md mx-auto bg-foreground">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                className="w-full h-full object-cover"
-              />
+          
+          {scannedCode ? (
+            <div className="text-center py-12">
+              <p className="text-lg font-semibold mb-3">QR Code Scanned</p>
+              <p className="font-mono text-xl mb-4">{scannedCode}</p>
+              <p className="text-sm text-muted-foreground">Redirecting to authorization...</p>
             </div>
-            <p className="text-sm text-muted-foreground text-center">
-              Point camera at parent's QR code
-            </p>
-            <div className="flex flex-col gap-2 max-w-md mx-auto">
-              <button onClick={simulateSuccessfulScan} className="btn-primary">
-                Simulate Successful Scan
+          ) : showScanner ? (
+            <QRCodeScanner
+              onScanSuccess={handleScanSuccess}
+              onScanError={handleScanError}
+              onClose={() => setShowScanner(false)}
+            />
+          ) : (
+            <div className="text-center py-12 space-y-6">
+              <p className="text-muted-foreground">
+                Tap below to open camera and scan QR code
+              </p>
+              <button 
+                onClick={() => setShowScanner(true)} 
+                className="btn-primary px-8"
+              >
+                Scan QR Code
               </button>
-              <button onClick={stopScanner} className="btn-secondary">
-                Stop Scanner
-              </button>
+              <div className="pt-6 border-t border-border">
+                <button 
+                  onClick={() => navigate('/teacher/manual-checkin')}
+                  className="btn-ghost text-sm"
+                >
+                  Use Manual Check-in Instead
+                </button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="text-center py-8 space-y-4">
-            <p className="text-muted-foreground">
-              Tap below to open camera and scan QR code
-            </p>
-            <button onClick={startScanner} className="btn-primary">
-              Scan QR
-            </button>
-          </div>
-        )}
-
-        <div className="mt-8 pt-8 border-t border-border">
-          <button 
-            onClick={() => navigate('/teacher/manual-checkin')}
-            className="btn-ghost"
-          >
-            Use Manual Check-in Instead
-          </button>
+          )}
         </div>
       </main>
 
@@ -113,3 +96,4 @@ export default function CheckIn() {
     </div>
   );
 }
+

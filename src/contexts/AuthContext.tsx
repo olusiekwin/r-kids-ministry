@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { User, UserRole } from '@/types';
+import { authApi } from '@/services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -9,52 +10,73 @@ interface AuthContextType {
   logout: () => void;
   setRole: (role: UserRole) => void;
   pendingMFA: boolean;
+  otpCode: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo
-const mockUsers: Record<string, User> = {
-  'admin@rkids.church': { id: '1', email: 'admin@rkids.church', role: 'admin', name: 'Admin User' },
-  'teacher@rkids.church': { id: '2', email: 'teacher@rkids.church', role: 'teacher', name: 'Sarah Teacher' },
-  'parent@rkids.church': { id: '3', email: 'parent@rkids.church', role: 'parent', name: 'John Parent' },
-  'teen@rkids.church': { id: '4', email: 'teen@rkids.church', role: 'teen', name: 'Mike Teen' },
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    // Load user from localStorage on init
+    const stored = localStorage.getItem('user');
+    return stored ? JSON.parse(stored) : null;
+  });
   const [pendingMFA, setPendingMFA] = useState(false);
-  const [tempUser, setTempUser] = useState<User | null>(null);
+  const [tempToken, setTempToken] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState<string | null>(null);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      const response = await authApi.login(email, password);
     
-    const foundUser = mockUsers[email.toLowerCase()];
-    if (foundUser && password === 'password123') {
-      setTempUser(foundUser);
-      setPendingMFA(true);
-      return true;
-    }
+      if (response.requiresMFA) {
+        setTempToken(response.token);
+        setOtpCode(response.otpCode || null); // Store OTP code from backend
+        setPendingMFA(true);
+        return true;
+      } else {
+        // No MFA required
+        localStorage.setItem('auth_token', response.token);
+        // Fetch user profile
+        // const userProfile = await fetchUserProfile(response.token);
+        // setUser(userProfile);
+        return true;
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
     return false;
+    }
   };
 
   const verifyMFA = async (code: string): Promise<boolean> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    if (code === '123456' && tempUser) {
-      setUser(tempUser);
+    try {
+      const response = await authApi.verifyMFA(code, tempToken || undefined);
+      localStorage.setItem('auth_token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      setUser(response.user);
       setPendingMFA(false);
-      setTempUser(null);
+      setTempToken(null);
+      setOtpCode(null); // Clear OTP code after successful verification
       return true;
-    }
+    } catch (error: any) {
+      console.error('MFA verification error:', error);
     return false;
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user');
     setUser(null);
     setPendingMFA(false);
-    setTempUser(null);
+      setTempToken(null);
+      setOtpCode(null);
+    }
   };
 
   const setRole = (role: UserRole) => {
@@ -71,7 +93,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       verifyMFA,
       logout,
       setRole,
-      pendingMFA
+      pendingMFA,
+      otpCode
     }}>
       {children}
     </AuthContext.Provider>

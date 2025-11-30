@@ -1,149 +1,180 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
-import { mockParents } from '@/data/mockData';
+import { AdminSidebar } from '@/components/AdminSidebar';
+import { parentsApi, usersApi } from '@/services/api';
+import { Parent, User } from '@/types';
 
 type SortField = 'id' | 'name' | 'childrenCount' | 'status';
 type SortOrder = 'asc' | 'desc';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [sortField, setSortField] = useState<SortField>('name');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
-  const sortedParents = [...mockParents].sort((a, b) => {
-    const aVal = a[sortField];
-    const bVal = b[sortField];
-    const order = sortOrder === 'asc' ? 1 : -1;
-    
-    if (typeof aVal === 'string' && typeof bVal === 'string') {
-      return aVal.localeCompare(bVal) * order;
-    }
-    return ((aVal as number) - (bVal as number)) * order;
+  const [stats, setStats] = useState({
+    parents: 0,
+    teachers: 0,
+    teens: 0,
+    children: 0,
+    pendingApprovals: 0,
   });
+  const [loading, setLoading] = useState(true);
 
-  const totalPages = Math.ceil(sortedParents.length / itemsPerPage);
-  const paginatedParents = sortedParents.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  useEffect(() => {
+    loadStats();
+  }, []);
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
+  const loadStats = async () => {
+    try {
+      setLoading(true);
+      const [parentsData, teachersData, teensData] = await Promise.all([
+        parentsApi.list().catch(() => []),
+        usersApi.listByRole('teacher').catch(() => []),
+        usersApi.listByRole('teen').catch(() => []),
+      ]);
+      
+      setStats({
+        parents: parentsData.length,
+        teachers: teachersData.length,
+        teens: teensData.length,
+        children: 0, // Will be loaded separately
+        pendingApprovals: 0, // Will be loaded separately
+      });
+    } catch (error: any) {
+      console.error('Failed to load stats:', error);
+    } finally {
+      setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
+      <AdminSidebar />
       
-      <main className="container py-6">
-        <h2 className="text-xl font-medium mb-6">Admin Dashboard</h2>
-        
-        <div className="flex flex-wrap gap-2 mb-6">
-          <button onClick={() => navigate('/admin/create-parent')} className="btn-primary">
-            Create Parent
-          </button>
-          <button onClick={() => navigate('/admin/guardians')} className="btn-secondary">
-            Manage Guardians
-          </button>
-          <button onClick={() => navigate('/admin/groups')} className="btn-secondary">
-            Groups
-          </button>
-          <button onClick={() => navigate('/admin/reports')} className="btn-secondary">
-            Reports
-          </button>
-          <button onClick={() => navigate('/admin/audit-log')} className="btn-secondary">
-            Audit Log
-          </button>
+      <main className="md:ml-64 container py-8">
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold mb-2">Dashboard</h1>
+          <p className="text-muted-foreground">Overview of your ministry management</p>
         </div>
 
-        <div className="border border-border rounded-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-muted">
-                <tr>
-                  <th 
-                    className="table-header cursor-pointer hover:bg-accent"
-                    onClick={() => handleSort('id')}
-                  >
-                    ID {sortField === 'id' && (sortOrder === 'asc' ? '↑' : '↓')}
-                  </th>
-                  <th 
-                    className="table-header cursor-pointer hover:bg-accent"
-                    onClick={() => handleSort('name')}
-                  >
-                    Name {sortField === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
-                  </th>
-                  <th 
-                    className="table-header cursor-pointer hover:bg-accent"
-                    onClick={() => handleSort('childrenCount')}
-                  >
-                    Children {sortField === 'childrenCount' && (sortOrder === 'asc' ? '↑' : '↓')}
-                  </th>
-                  <th 
-                    className="table-header cursor-pointer hover:bg-accent"
-                    onClick={() => handleSort('status')}
-                  >
-                    Status {sortField === 'status' && (sortOrder === 'asc' ? '↑' : '↓')}
-                  </th>
-                  <th className="table-header">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedParents.map((parent) => (
-                  <tr key={parent.id} className="hover:bg-muted/50">
-                    <td className="table-cell font-mono text-sm">{parent.id}</td>
-                    <td className="table-cell">{parent.name}</td>
-                    <td className="table-cell">{parent.childrenCount}</td>
-                    <td className="table-cell">
-                      <span className={`status-badge ${
-                        parent.status === 'active' 
-                          ? 'bg-muted text-foreground' 
-                          : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {parent.status}
-                      </span>
-                    </td>
-                    <td className="table-cell">
-                      <button className="btn-ghost btn-sm">View</button>
-                      <button className="btn-ghost btn-sm">Edit</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Loading...</p>
           </div>
-
-          <div className="flex items-center justify-between p-4 border-t border-border">
-            <span className="text-sm text-muted-foreground">
-              Page {currentPage} of {totalPages}
-            </span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="btn-ghost btn-sm"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="btn-ghost btn-sm"
-              >
-                Next
-              </button>
+        ) : (
+          <>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <div className="border border-border rounded-lg p-6 bg-background">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Parents</p>
+                    <p className="text-2xl font-bold text-foreground">{stats.parents}</p>
+                  </div>
+                  <button
+                    onClick={() => navigate('/admin/manage-users?tab=parent')}
+                    className="px-3 py-1.5 text-xs font-medium bg-foreground text-background rounded-md hover:opacity-90"
+                  >
+                    Manage
+                  </button>
+                </div>
+              </div>
+              <div className="border border-border rounded-lg p-6 bg-background">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Teachers</p>
+                    <p className="text-2xl font-bold text-foreground">{stats.teachers}</p>
+                  </div>
+                  <button
+                    onClick={() => navigate('/admin/manage-users?tab=teacher')}
+                    className="px-3 py-1.5 text-xs font-medium bg-foreground text-background rounded-md hover:opacity-90"
+                  >
+                    Manage
+                  </button>
+                </div>
+              </div>
+              <div className="border border-border rounded-lg p-6 bg-background">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Teens</p>
+                    <p className="text-2xl font-bold text-foreground">{stats.teens}</p>
+                  </div>
+                  <button
+                    onClick={() => navigate('/admin/manage-users?tab=teen')}
+                    className="px-3 py-1.5 text-xs font-medium bg-foreground text-background rounded-md hover:opacity-90"
+                  >
+                    Manage
+                  </button>
+                </div>
+              </div>
+              <div className="border border-border rounded-lg p-6 bg-background">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Pending</p>
+                    <p className="text-2xl font-bold text-foreground">{stats.pendingApprovals}</p>
+                  </div>
+                  <button
+                    onClick={() => navigate('/admin/pending-approvals')}
+                    className="px-3 py-1.5 text-xs font-medium bg-foreground text-background rounded-md hover:opacity-90"
+                  >
+                    Review
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+
+            {/* Quick Actions */}
+            <div className="border border-border rounded-lg p-6 bg-background">
+              <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <button
+                  onClick={() => navigate('/admin/manage-users')}
+                  className="p-4 border border-border rounded-lg hover:bg-muted transition-colors text-left"
+                >
+                  <p className="font-medium mb-1">Manage Users</p>
+                  <p className="text-sm text-muted-foreground">Create teachers, teens, and parents</p>
+                </button>
+                <button
+                  onClick={() => navigate('/admin/children')}
+                  className="p-4 border border-border rounded-lg hover:bg-muted transition-colors text-left"
+                >
+                  <p className="font-medium mb-1">All Children</p>
+                  <p className="text-sm text-muted-foreground">View all children added by parents</p>
+                </button>
+                <button
+                  onClick={() => navigate('/admin/check-ins')}
+                  className="p-4 border border-border rounded-lg hover:bg-muted transition-colors text-left"
+                >
+                  <p className="font-medium mb-1">Check-Ins & Check-Outs</p>
+                  <p className="text-sm text-muted-foreground">Track children received and pickup status</p>
+                </button>
+                <button
+                  onClick={() => navigate('/admin/groups')}
+                  className="p-4 border border-border rounded-lg hover:bg-muted transition-colors text-left"
+                >
+                  <p className="font-medium mb-1">Manage Groups</p>
+                  <p className="text-sm text-muted-foreground">Assign teachers to groups</p>
+                </button>
+                <button
+                  onClick={() => navigate('/admin/guardians')}
+                  className="p-4 border border-border rounded-lg hover:bg-muted transition-colors text-left"
+                >
+                  <p className="font-medium mb-1">Manage Guardians</p>
+                  <p className="text-sm text-muted-foreground">View and manage all guardians</p>
+                </button>
+                <button
+                  onClick={() => navigate('/admin/reports')}
+                  className="p-4 border border-border rounded-lg hover:bg-muted transition-colors text-left"
+                >
+                  <p className="font-medium mb-1">View Reports</p>
+                  <p className="text-sm text-muted-foreground">Attendance and analytics</p>
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </main>
 
       <MobileNav />

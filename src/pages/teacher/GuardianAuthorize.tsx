@@ -1,26 +1,64 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
-import { mockChildren } from '@/data/mockData';
+import { PhotoPlaceholder } from '@/components/PhotoPlaceholder';
+import { childrenApi, checkOutApi } from '@/services/api';
+import { Child, Guardian } from '@/types';
 
 export default function GuardianAuthorize() {
   const navigate = useNavigate();
   const { childId } = useParams();
-  const [selectedGuardian, setSelectedGuardian] = useState<string | null>(null);
+  const [selectedGuardian, setSelectedGuardian] = useState<Guardian | null>(null);
   const [otp, setOtp] = useState('');
   const [otpStep, setOtpStep] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [child, setChild] = useState<Child | null>(null);
 
-  const child = mockChildren.find(c => c.registrationId === childId);
+  useEffect(() => {
+    if (childId) {
+      loadChild();
+    }
+  }, [childId]);
+
+  const loadChild = async () => {
+    try {
+      const data = await childrenApi.get(childId!);
+      setChild(data);
+    } catch (error) {
+      console.error('Failed to load child:', error);
+    }
+  };
+
+  const handleGuardianSelect = (guardian: Guardian) => {
+    setSelectedGuardian(guardian);
+    setOtpStep(true);
+    // In real app: Send OTP to guardian
+  };
+
+  const handleVerifyOTP = async () => {
+    if (!childId || !selectedGuardian) return;
+    
+    try {
+      setLoading(true);
+      setError('');
+      await checkOutApi.release(childId, selectedGuardian.id, otp);
+      alert('Child released successfully!');
+      navigate('/teacher');
+    } catch (error: any) {
+      setError(error.message || 'Invalid OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (!child) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
         <main className="container py-6">
-          <p className="text-destructive">Child not found: {childId}</p>
+          <p className="text-destructive">Child not found</p>
           <button onClick={() => navigate('/teacher')} className="btn-secondary mt-4">
             Back to Dashboard
           </button>
@@ -29,170 +67,102 @@ export default function GuardianAuthorize() {
     );
   }
 
-  const activeGuardians = child.guardians.filter(g => g.status === 'active');
-  const expiredGuardians = child.guardians.filter(g => g.status === 'expired');
-
-  const handleProceedWithOTP = () => {
-    if (!selectedGuardian) {
-      setError('Please select a guardian');
-      return;
-    }
-    setOtpStep(true);
-    setError('');
-  };
-
-  const handleVerifyOTP = async () => {
-    if (otp.length !== 6) {
-      setError('Please enter a 6-digit OTP');
-      return;
-    }
-
-    setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    if (otp === '123456') {
-      alert(`Check-in successful! ${child.name} released to ${selectedGuardian}`);
-      navigate('/teacher');
-    } else {
-      setError('Invalid OTP');
-      setLoading(false);
-    }
-  };
+  const activeGuardians = child.guardians?.filter(g => g.status === 'active') || [];
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
       
-      <main className="container py-6">
-        <h2 className="text-xl font-medium mb-6">Guardian Authorization</h2>
-        
-        <div className="card-minimal mb-6">
-          <p className="text-sm text-muted-foreground">Child:</p>
-          <p className="text-lg font-medium">{child.name} ({child.registrationId})</p>
-          <p className="text-sm text-muted-foreground">Group: {child.group} | Age: {child.age}</p>
+      <main className="container py-8">
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold mb-2">Guardian Authorization</h1>
+          <p className="text-muted-foreground">Verify guardian identity for {child.name}</p>
         </div>
 
         {!otpStep ? (
-          <>
-            <div className="mb-6">
-              <p className="text-sm font-medium mb-3">Guardians authorized:</p>
-              
-              <div className="space-y-2">
-                {activeGuardians.map((guardian) => (
-                  <label
-                    key={guardian.id}
-                    className={`flex items-center gap-3 p-3 border rounded-sm cursor-pointer ${
-                      selectedGuardian === guardian.name 
-                        ? 'border-foreground bg-muted' 
-                        : 'border-border hover:bg-muted/50'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="guardian"
-                      value={guardian.name}
-                      checked={selectedGuardian === guardian.name}
-                      onChange={(e) => setSelectedGuardian(e.target.value)}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-success font-medium">✓</span>
-                    <div className="flex-1">
-                      <p className="font-medium">{guardian.name} ({guardian.relationship})</p>
-                      {guardian.expiresAt && (
-                        <p className="text-xs text-muted-foreground">
-                          Expires: {guardian.expiresAt}
-                        </p>
-                      )}
-                    </div>
-                  </label>
-                ))}
-
-                {expiredGuardians.map((guardian) => (
-                  <div
-                    key={guardian.id}
-                    className="flex items-center gap-3 p-3 border border-border rounded-sm bg-muted/30 opacity-60"
-                  >
-                    <span className="w-4"></span>
-                    <span className="text-destructive font-medium">✗</span>
-                    <div className="flex-1">
-                      <p className="font-medium">{guardian.name} ({guardian.relationship})</p>
-                      <p className="text-xs text-destructive">Expired</p>
-                    </div>
-                  </div>
-                ))}
+          <div>
+            <div className="border border-border rounded-md p-6 mb-6 bg-background shadow-sm">
+              <div className="flex items-center gap-4 mb-4">
+                <PhotoPlaceholder size="lg" />
+                <div>
+                  <p className="font-mono text-sm text-muted-foreground">{child.registrationId}</p>
+                  <p className="text-xl font-semibold">{child.name}</p>
+                  <p className="text-sm text-muted-foreground">Age {child.age} • {child.group}</p>
+                </div>
               </div>
             </div>
 
-            {error && (
-              <p className="text-sm text-destructive mb-4">{error}</p>
-            )}
-
-            <button
-              onClick={handleProceedWithOTP}
-              disabled={!selectedGuardian}
-              className="btn-primary w-full md:w-auto"
-            >
-              Proceed with OTP
-            </button>
-          </>
-        ) : (
-          <div className="max-w-md">
-            <p className="text-sm text-muted-foreground mb-4">
-              Releasing {child.name} to: <strong>{selectedGuardian}</strong>
-            </p>
-            <p className="text-sm text-muted-foreground mb-4">
-              Enter OTP sent to guardian's phone/email
-            </p>
-
-            <div className="mb-4">
-              <label className="block text-sm mb-1">OTP Code:</label>
-              <input
-                type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="Enter 6-digit code"
-                className="input-field text-center text-lg tracking-widest font-mono"
-                maxLength={6}
-                autoFocus
-              />
+            <div className="mb-6">
+              <h3 className="font-semibold mb-4">Select Authorized Guardian</h3>
+              {activeGuardians.length === 0 ? (
+                <p className="text-muted-foreground">No active guardians found</p>
+              ) : (
+                <div className="space-y-2">
+                  {activeGuardians.map((guardian) => (
+                    <button
+                      key={guardian.id}
+                      onClick={() => handleGuardianSelect(guardian)}
+                      className="w-full border border-border rounded-md p-4 hover:bg-muted/30 transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-4">
+                        <PhotoPlaceholder size="md" />
+                        <div>
+                          <p className="font-semibold">{guardian.name}</p>
+                          <p className="text-sm text-muted-foreground">{guardian.relationship}</p>
+                          {guardian.expiresAt && (
+                            <p className="text-xs text-muted-foreground">Expires: {guardian.expiresAt}</p>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-
+          </div>
+        ) : (
+          <div className="border border-border rounded-md p-6 bg-background shadow-sm max-w-md">
+            <h3 className="font-semibold mb-4">Verify OTP</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              OTP sent to {selectedGuardian?.name}
+            </p>
+            <input
+              type="text"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="Enter 6-digit OTP"
+              className="input-field text-center text-2xl tracking-widest font-mono mb-4"
+              maxLength={6}
+            />
             {error && (
               <p className="text-sm text-destructive mb-4">{error}</p>
             )}
-
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={handleVerifyOTP}
-                disabled={loading}
-                className="btn-primary"
-              >
-                {loading ? 'Verifying...' : 'Confirm Release'}
-              </button>
+            <div className="flex gap-2">
               <button
                 onClick={() => {
                   setOtpStep(false);
                   setOtp('');
                   setError('');
                 }}
-                className="btn-ghost"
+                className="btn-secondary flex-1"
               >
-                Back to Guardian Selection
+                Back
+              </button>
+              <button
+                onClick={handleVerifyOTP}
+                disabled={loading || otp.length !== 6}
+                className="btn-primary flex-1"
+              >
+                {loading ? 'Verifying...' : 'Verify & Release'}
               </button>
             </div>
-
-            <p className="text-xs text-muted-foreground mt-4">
-              Demo OTP: 123456
-            </p>
           </div>
         )}
-      </main>
 
-      <div className="fixed-bottom-action md:hidden">
-        <button onClick={() => navigate('/teacher')} className="btn-secondary w-full">
-          Cancel
+        <button onClick={() => navigate('/teacher')} className="btn-secondary mt-6">
+          Back to Dashboard
         </button>
-      </div>
+      </main>
 
       <MobileNav />
     </div>

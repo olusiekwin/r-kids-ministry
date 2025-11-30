@@ -1,0 +1,373 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Header } from '@/components/Header';
+import { MobileNav } from '@/components/MobileNav';
+import { QRCodeGenerator } from '@/components/QRCodeGenerator';
+import { QRCodeScanner } from '@/components/QRCodeScanner';
+import { Bell, CheckCircle2, Clock, X } from 'lucide-react';
+
+interface Notification {
+  id: string;
+  type: 'pickup' | 'checkin' | 'birthday' | 'reminder' | 'approval';
+  title: string;
+  message: string;
+  childId?: string;
+  childName?: string;
+  timestamp: string;
+  read: boolean;
+  actionRequired: boolean;
+  pickupQR?: string;
+  pickupOTP?: string;
+}
+
+const mockNotifications: Notification[] = [
+  {
+    id: '1',
+    type: 'pickup',
+    title: 'Ready for Pickup',
+    message: 'Maria is ready to be picked up from Little Angels',
+    childId: 'RS073/01',
+    childName: 'Maria',
+    timestamp: new Date().toISOString(),
+    read: false,
+    actionRequired: true,
+    pickupQR: JSON.stringify({
+      type: 'pickup',
+      childId: 'RS073/01',
+      timestamp: new Date().toISOString(),
+    }),
+    pickupOTP: '123456',
+  },
+  {
+    id: '2',
+    type: 'checkin',
+    title: 'Check-In Confirmed',
+    message: 'David has been checked in successfully at 9:15 AM',
+    childId: 'RS073/02',
+    childName: 'David',
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    read: false,
+    actionRequired: false,
+  },
+  {
+    id: '3',
+    type: 'approval',
+    title: 'Child Approved',
+    message: 'Sophia has been approved and is now active',
+    childId: 'RS076/01',
+    childName: 'Sophia',
+    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    read: true,
+    actionRequired: false,
+  },
+];
+
+export default function Notifications() {
+  const navigate = useNavigate();
+  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
+  const [showQR, setShowQR] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const [method, setMethod] = useState<'scan' | 'receive' | null>(null);
+
+  const handlePickupAction = (notification: Notification) => {
+    setSelectedNotification(notification);
+    setShowQR(false);
+    setShowScanner(false);
+    setMethod(null);
+  };
+
+  const handleScanQR = () => {
+    setMethod('scan');
+    setShowScanner(true);
+  };
+
+  const handleReceiveCode = () => {
+    setMethod('receive');
+    setShowQR(true);
+  };
+
+  const handleScanSuccess = (decodedText: string) => {
+    try {
+      const qrData = JSON.parse(decodedText);
+      if (qrData.type === 'pickup' && qrData.childId === selectedNotification?.childId) {
+        alert(`QR code verified! ${selectedNotification?.childName} will be released to you.`);
+        // Mark notification as read
+        setNotifications(notifications.map(n => 
+          n.id === selectedNotification?.id ? { ...n, read: true, actionRequired: false } : n
+        ));
+        setShowScanner(false);
+        setSelectedNotification(null);
+        setMethod(null);
+      } else {
+        alert('Invalid QR code. Please scan the pickup QR code provided by the teacher.');
+      }
+    } catch (err) {
+      alert('Invalid QR code format.');
+    }
+  };
+
+  const markAsRead = (id: string) => {
+    setNotifications(notifications.map(n => 
+      n.id === id ? { ...n, read: true } : n
+    ));
+  };
+
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    return date.toLocaleDateString();
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+  const pickupNotifications = notifications.filter(n => n.type === 'pickup' && n.actionRequired);
+
+  return (
+    <div className="min-h-screen bg-background pb-16 md:pb-0">
+      <Header />
+      
+      <main className="container py-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-semibold mb-2">Notifications</h1>
+            {unreadCount > 0 && (
+              <span className="inline-flex items-center px-3 py-1 bg-foreground text-background text-sm rounded-full mt-2">
+                {unreadCount} new
+              </span>
+            )}
+          </div>
+
+          {/* Active Pickup Notifications */}
+          {pickupNotifications.length > 0 && (
+            <div className="bg-muted border-2 border-foreground/20 rounded-md p-8 mb-8 text-center">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <Bell className="w-6 h-6" />
+                <h3 className="font-semibold text-lg">Ready for Pickup!</h3>
+              </div>
+              <p className="text-sm text-muted-foreground mb-6">
+                {pickupNotifications.length} child(ren) ready to be picked up
+              </p>
+              <div className="space-y-4">
+                {pickupNotifications.map((notification) => (
+                  <div key={notification.id} className="p-6 bg-background rounded-md border border-border">
+                    <p className="font-semibold mb-2">{notification.childName}</p>
+                    <p className="text-sm text-muted-foreground mb-4">{notification.message}</p>
+                    <button
+                      onClick={() => handlePickupAction(notification)}
+                      className="btn-primary"
+                    >
+                      Pick Up Now
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Pickup Action Modal */}
+          {selectedNotification && !showScanner && !showQR && (
+            <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center p-4 z-50">
+              <div className="bg-background p-8 rounded-md max-w-md w-full border border-border shadow-lg">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold">Pickup {selectedNotification.childName}</h3>
+                  <button
+                    onClick={() => {
+                      setSelectedNotification(null);
+                      setMethod(null);
+                    }}
+                    className="btn-ghost btn-sm p-1"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                <p className="text-sm text-muted-foreground mb-8 text-center">
+                  Choose how you'd like to verify pickup:
+                </p>
+
+                <div className="space-y-4">
+                  <button
+                    onClick={handleScanQR}
+                    className="btn-primary w-full py-4"
+                  >
+                    <div className="text-center">
+                      <p className="font-semibold mb-1">Scan Teacher's QR Code</p>
+                      <p className="text-sm text-muted-foreground">
+                        Scan the QR code displayed by the teacher
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={handleReceiveCode}
+                    className="btn-secondary w-full py-4"
+                  >
+                    <div className="text-center">
+                      <p className="font-semibold mb-1">Receive Pickup Code</p>
+                      <p className="text-sm text-muted-foreground">
+                        Get QR code or OTP to show teacher
+                      </p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+        {/* QR Scanner */}
+        {showScanner && selectedNotification && (
+          <QRCodeScanner
+            onScanSuccess={handleScanSuccess}
+            onScanError={(error) => alert(`Scanning error: ${error}`)}
+            onClose={() => {
+              setShowScanner(false);
+              setSelectedNotification(null);
+              setMethod(null);
+            }}
+          />
+        )}
+
+          {/* Receive Code Display */}
+          {showQR && selectedNotification && (
+            <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center p-4 z-50">
+              <div className="bg-background p-8 rounded-md max-w-md w-full border border-border shadow-lg">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold">Pickup Code</h3>
+                  <button
+                    onClick={() => {
+                      setShowQR(false);
+                      setSelectedNotification(null);
+                      setMethod(null);
+                    }}
+                    className="btn-ghost btn-sm p-1"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {selectedNotification.pickupQR && (
+                  <div className="mb-6 flex justify-center">
+                    <QRCodeGenerator
+                      value={selectedNotification.pickupQR}
+                      size={250}
+                      title={`Pickup QR for ${selectedNotification.childName}`}
+                    />
+                  </div>
+                )}
+
+                {selectedNotification.pickupOTP && (
+                  <div className="border border-border rounded-md p-6 text-center mb-6">
+                    <p className="text-sm text-muted-foreground mb-3">Your Pickup OTP</p>
+                    <p className="text-4xl font-mono font-bold tracking-widest mb-2">
+                      {selectedNotification.pickupOTP}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Valid for 15 minutes
+                    </p>
+                  </div>
+                )}
+
+                <div className="bg-muted border border-border rounded-md p-5">
+                  <p className="text-sm font-semibold mb-3 text-center">
+                    Instructions:
+                  </p>
+                  <ul className="text-sm text-muted-foreground space-y-2 text-center">
+                    <li>Show this QR code or OTP to the teacher</li>
+                    <li>Teacher will verify and release {selectedNotification.childName}</li>
+                    <li>You'll receive a confirmation notification</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* All Notifications List */}
+          {notifications.length === 0 ? (
+            <div className="border border-border rounded-md p-12 text-center bg-background shadow-sm">
+              <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No notifications</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  onClick={() => {
+                    if (!notification.read) markAsRead(notification.id);
+                    if (notification.type === 'pickup' && notification.actionRequired) {
+                      handlePickupAction(notification);
+                    }
+                  }}
+                  className={`border rounded-md p-6 cursor-pointer transition-colors bg-background shadow-sm ${
+                    notification.read 
+                      ? 'border-border' 
+                      : 'border-foreground/20'
+                  }`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="mt-1">
+                      {notification.type === 'pickup' && (
+                        <Bell className={`w-5 h-5 ${notification.actionRequired ? 'text-foreground' : 'text-muted-foreground'}`} />
+                      )}
+                      {notification.type === 'checkin' && (
+                        <CheckCircle2 className="w-5 h-5 text-foreground" />
+                      )}
+                      {notification.type === 'approval' && (
+                        <CheckCircle2 className="w-5 h-5 text-foreground" />
+                      )}
+                      {notification.type === 'reminder' && (
+                        <Clock className="w-5 h-5 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold">{notification.title}</h4>
+                        {!notification.read && (
+                          <span className="w-2 h-2 bg-foreground rounded-full"></span>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {notification.message}
+                      </p>
+                      {notification.childName && (
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Child: {notification.childName} ({notification.childId})
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground mb-3">
+                        {formatTime(notification.timestamp)}
+                      </p>
+                      {notification.actionRequired && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePickupAction(notification);
+                          }}
+                          className="btn-primary btn-sm"
+                        >
+                          Take Action
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+
+      <MobileNav />
+    </div>
+  );
+}
+

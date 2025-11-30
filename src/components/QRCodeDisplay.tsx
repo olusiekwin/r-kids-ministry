@@ -1,35 +1,27 @@
+import { QRCodeGenerator } from './QRCodeGenerator';
+
 interface QRCodeDisplayProps {
   value: string;
+  size?: number;
+  showDownload?: boolean;
+  showShare?: boolean;
+  title?: string;
 }
 
-export function QRCodeDisplay({ value }: QRCodeDisplayProps) {
-  // ASCII art QR code placeholder
+export function QRCodeDisplay({ 
+  value, 
+  size = 200,
+  showDownload = true,
+  showShare = true,
+  title 
+}: QRCodeDisplayProps) {
   return (
-    <div className="border border-border p-4 bg-background inline-block">
-      <pre className="text-[6px] leading-[6px] font-mono select-none">
-{`██████████████  ████  ██████████████
-██          ██  ████  ██          ██
-██  ██████  ██    ██  ██  ██████  ██
-██  ██████  ██  ████  ██  ██████  ██
-██  ██████  ██  ██    ██  ██████  ██
-██          ██        ██          ██
-██████████████  ██  ████████████████
-                ██                  
-██████  ██████████████  ████████████
-    ██  ██      ██  ██    ██  ██    
-████  ████  ██  ██████████    ██████
-██  ██      ██████      ██    ██    
-██████████████      ██████  ████████
-                ██  ██    ██  ██  ██
-██████████████  ████████████████████
-██          ██    ██████  ██      ██
-██  ██████  ██  ██  ██████  ████████
-██  ██████  ██    ████    ██████  ██
-██  ██████  ██  ██████████    ██████
-██          ██  ██  ██  ██████    ██
-██████████████  ██████    ██████████`}
-      </pre>
-      <p className="text-xs text-muted-foreground mt-2 text-center">{value}</p>
-    </div>
+    <QRCodeGenerator
+      value={value}
+      size={size}
+      showDownload={showDownload}
+      showShare={showShare}
+      title={title}
+    />
   );
 }

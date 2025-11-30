@@ -28,7 +28,7 @@ export function MobileNav() {
         return [
           { label: 'Dashboard', path: '/parent' },
           { label: 'Children', path: '/parent/children' },
-          { label: 'Attendance', path: '/parent/attendance' },
+          { label: 'Notifications', path: '/parent/notifications' },
           { label: 'Settings', path: '/settings' },
         ];
       case 'teen':

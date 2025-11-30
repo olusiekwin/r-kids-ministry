@@ -1,23 +1,56 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
-import { mockChildren } from '@/data/mockData';
+import { AdminSidebar } from '@/components/AdminSidebar';
+import { childrenApi, guardiansApi } from '@/services/api';
+import { Child, Guardian } from '@/types';
+
+interface GuardianWithChild extends Guardian {
+  childName: string;
+  childId: string;
+}
 
 export default function ManageGuardians() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [guardians, setGuardians] = useState<GuardianWithChild[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Flatten all guardians from all children
-  const allGuardians = mockChildren.flatMap(child => 
-    child.guardians.map(g => ({
+  useEffect(() => {
+    loadGuardians();
+  }, []);
+
+  const loadGuardians = async () => {
+    try {
+      setLoading(true);
+      // Get all children first
+      const children = await childrenApi.list();
+      
+      // Get guardians for each child and flatten
+      const allGuardians: GuardianWithChild[] = [];
+      
+      for (const child of children) {
+        if (child.guardians && child.guardians.length > 0) {
+          const guardiansWithChild = child.guardians.map(g => ({
       ...g,
       childName: child.name,
       childId: child.registrationId,
-    }))
-  );
+          }));
+          allGuardians.push(...guardiansWithChild);
+        }
+      }
+      
+      setGuardians(allGuardians);
+    } catch (error) {
+      console.error('Failed to load guardians:', error);
+      setGuardians([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const filteredGuardians = allGuardians.filter(g => 
+  const filteredGuardians = guardians.filter(g => 
     g.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     g.childName.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -25,9 +58,13 @@ export default function ManageGuardians() {
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
+      <AdminSidebar />
       
-      <main className="container py-6">
-        <h2 className="text-xl font-medium mb-6">Manage Guardians</h2>
+      <main className="md:ml-64 container py-8">
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold mb-2">Manage Guardians</h1>
+          <p className="text-muted-foreground">View and manage all guardians</p>
+        </div>
         
         <div className="flex flex-wrap gap-2 mb-6">
           <button className="btn-primary">Add Guardian</button>
@@ -44,10 +81,19 @@ export default function ManageGuardians() {
           />
         </div>
 
-        <div className="border border-border rounded-sm overflow-hidden">
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Loading guardians...</p>
+          </div>
+        ) : filteredGuardians.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No guardians found</p>
+          </div>
+        ) : (
+          <div className="border border-border rounded-md overflow-hidden bg-background shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-muted">
+                <thead>
                 <tr>
                   <th className="table-header">Guardian</th>
                   <th className="table-header">Child</th>
@@ -59,7 +105,7 @@ export default function ManageGuardians() {
               </thead>
               <tbody>
                 {filteredGuardians.map((guardian, index) => (
-                  <tr key={`${guardian.id}-${index}`} className="hover:bg-muted/50">
+                    <tr key={`${guardian.id}-${index}`} className="hover:bg-muted/30 transition-colors border-b border-border last:border-0">
                     <td className="table-cell font-medium">{guardian.name}</td>
                     <td className="table-cell">
                       <span className="font-mono text-xs text-muted-foreground mr-2">
@@ -71,8 +117,8 @@ export default function ManageGuardians() {
                     <td className="table-cell">
                       <span className={`status-badge ${
                         guardian.status === 'active' 
-                          ? 'bg-muted text-success' 
-                          : 'bg-muted text-destructive'
+                            ? 'bg-foreground text-background border border-foreground' 
+                            : 'bg-muted text-muted-foreground border border-border'
                       }`}>
                         {guardian.status}
                       </span>
@@ -81,10 +127,12 @@ export default function ManageGuardians() {
                       {guardian.expiresAt || '—'}
                     </td>
                     <td className="table-cell">
+                        <div className="flex gap-2">
                       <button className="btn-ghost btn-sm">Edit</button>
                       {guardian.status === 'expired' && (
                         <button className="btn-ghost btn-sm">Renew</button>
                       )}
+                        </div>
                     </td>
                   </tr>
                 ))}
@@ -92,6 +140,7 @@ export default function ManageGuardians() {
             </table>
           </div>
         </div>
+        )}
 
         <button onClick={() => navigate('/admin')} className="btn-secondary mt-6">
           Back to Dashboard

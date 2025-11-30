@@ -20,54 +20,57 @@ export default function TeenDashboard() {
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
       
-      <main className="container py-6">
-        <h2 className="text-xl font-medium mb-6">Teen Dashboard</h2>
-        
-        <p className="text-sm text-muted-foreground mb-6">
+      <main className="container py-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-semibold mb-2">Teen Dashboard</h1>
+            <p className="text-muted-foreground">
           Welcome, {user?.name}. View your attendance record below.
         </p>
-
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="border border-border rounded-sm p-4">
-            <p className="text-sm text-muted-foreground">Attendance Rate</p>
-            <p className="text-3xl font-medium">{Math.round((presentCount / totalCount) * 100)}%</p>
           </div>
-          <div className="border border-border rounded-sm p-4">
-            <p className="text-sm text-muted-foreground">Sessions</p>
-            <p className="text-3xl font-medium">{presentCount}/{totalCount}</p>
+
+          <div className="grid grid-cols-2 gap-6 mb-8">
+            <div className="border border-border rounded-md p-6 bg-background shadow-sm text-center">
+              <p className="text-sm text-muted-foreground mb-2">Attendance Rate</p>
+              <p className="text-3xl font-semibold">{Math.round((presentCount / totalCount) * 100)}%</p>
+            </div>
+            <div className="border border-border rounded-md p-6 bg-background shadow-sm text-center">
+              <p className="text-sm text-muted-foreground mb-2">Sessions</p>
+              <p className="text-3xl font-semibold">{presentCount}/{totalCount}</p>
           </div>
         </div>
 
-        <div className="border border-border rounded-sm p-4 mb-6">
-          <p className="text-sm text-muted-foreground">Your Group</p>
-          <p className="text-lg font-medium">Trendsetters</p>
-          <p className="text-sm text-muted-foreground mt-2">
+          <div className="border border-border rounded-md p-6 mb-8 bg-background shadow-sm text-center">
+            <p className="text-sm text-muted-foreground mb-2">Your Group</p>
+            <p className="text-xl font-semibold mb-2">Trendsetters</p>
+            <p className="text-sm text-muted-foreground">
             Sundays at 9:30 AM • Room 205
           </p>
         </div>
 
         <div className="mb-6">
-          <h3 className="text-lg font-medium mb-3">Recent Attendance</h3>
-          <div className="border border-border rounded-sm divide-y divide-border">
+            <h3 className="text-lg font-semibold mb-4 text-center">Recent Attendance</h3>
+            <div className="border border-border rounded-md divide-y divide-border bg-background shadow-sm">
             {mockTeenAttendance.map((record, index) => (
-              <div key={index} className="flex items-center justify-between p-4">
+                <div key={index} className="flex items-center justify-between p-6 hover:bg-muted/30 transition-colors">
                 <div>
-                  <p className="font-medium">{record.date}</p>
+                    <p className="font-semibold">{record.date}</p>
                   {record.checkInTime !== '-' && (
-                    <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground mt-1">
                       Check-in: {record.checkInTime}
                     </p>
                   )}
                 </div>
                 <span className={`status-badge ${
                   record.status === 'present' 
-                    ? 'bg-muted text-success' 
-                    : 'bg-muted text-destructive'
+                      ? 'bg-foreground text-background border border-foreground' 
+                      : 'bg-muted text-muted-foreground border border-border'
                 }`}>
                   {record.status}
                 </span>
               </div>
             ))}
+            </div>
           </div>
         </div>
       </main>
