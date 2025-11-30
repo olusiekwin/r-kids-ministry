@@ -5,6 +5,7 @@ import { MobileNav } from '@/components/MobileNav';
 import { AdminSidebar } from '@/components/AdminSidebar';
 import { usersApi, parentsApi } from '@/services/api';
 import { User, Parent } from '@/types';
+import { toast } from '@/components/ui/sonner';
 
 type UserType = 'teacher' | 'teen' | 'parent';
 
@@ -20,6 +21,8 @@ export default function ManageUsers() {
     name: '',
     email: '',
     role: 'teacher' as UserType,
+    sendEmail: true,
+    customEmailMessage: '',
   });
 
   useEffect(() => {
@@ -64,23 +67,72 @@ export default function ManageUsers() {
           name: formData.name,
           email: formData.email,
           role: formData.role,
+          sendEmail: formData.sendEmail,
+          customEmailMessage: formData.customEmailMessage || undefined,
         });
       }
       setShowAddModal(false);
-      setFormData({ name: '', email: '', role: activeTab });
+      setFormData({ name: '', email: '', role: activeTab, sendEmail: true, customEmailMessage: '' });
       await loadUsers();
-      alert(`${formData.role} created successfully! Invitation sent to ${formData.email}`);
+      const emailStatus = formData.sendEmail ? 'Invitation sent' : 'User created (no email sent)';
+      toast.success(`${formData.role.charAt(0).toUpperCase() + formData.role.slice(1)} created successfully!`, {
+        description: emailStatus,
+      });
     } catch (error: any) {
-      alert(error.message || 'Failed to create user');
+      toast.error('Failed to create user', {
+        description: error.message || 'An error occurred',
+      });
+    }
+  };
+
+  const handleSuspend = async (userId: string) => {
+    const user = currentUsers.find((u: any) => u.id === userId);
+    if (!user) return;
+    
+    // Use a custom confirmation dialog instead of browser confirm
+    const confirmed = window.confirm(`Are you sure you want to suspend ${user.name}?`);
+    if (!confirmed) return;
+    
+    try {
+      await usersApi.suspend(userId);
+      await loadUsers();
+      toast.success('User suspended successfully', {
+        description: `${user.name} has been suspended`,
+      });
+    } catch (error: any) {
+      toast.error('Failed to suspend user', {
+        description: error.message || 'An error occurred',
+      });
+    }
+  };
+
+  const handleActivate = async (userId: string) => {
+    const user = currentUsers.find((u: any) => u.id === userId);
+    if (!user) return;
+    
+    try {
+      await usersApi.activate(userId);
+      await loadUsers();
+      toast.success('User activated successfully', {
+        description: `${user.name} has been activated`,
+      });
+    } catch (error: any) {
+      toast.error('Failed to activate user', {
+        description: error.message || 'An error occurred',
+      });
     }
   };
 
   const handleResendInvitation = async (email: string) => {
     try {
       await usersApi.resendInvitation(email);
-      alert('Invitation resent successfully!');
+      toast.success('Invitation resent successfully!', {
+        description: `Invitation sent to ${email}`,
+      });
     } catch (error: any) {
-      alert(error.message || 'Failed to resend invitation');
+      toast.error('Failed to resend invitation', {
+        description: error.message || 'An error occurred',
+      });
     }
   };
 
@@ -165,6 +217,9 @@ export default function ManageUsers() {
                     <th className="px-6 py-4 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
                       Email
                     </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+                      Phone
+                    </th>
                     {activeTab === 'parent' && (
                       <th className="px-6 py-4 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
                         Children
@@ -172,6 +227,9 @@ export default function ManageUsers() {
                     )}
                     <th className="px-6 py-4 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
                       Status
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
+                      Profile
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-semibold text-foreground uppercase tracking-wider">
                       Actions
@@ -185,19 +243,47 @@ export default function ManageUsers() {
                         {user.name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-foreground">{user.email}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-foreground text-sm">
+                        {user.phone || '-'}
+                      </td>
                       {activeTab === 'parent' && (
                         <td className="px-6 py-4 whitespace-nowrap text-foreground">
                           {user.childrenCount || 0}
                         </td>
                       )}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200">
-                          {user.status === 'active' ? 'Active' : 'Pending'}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                          user.status === 'active' 
+                            ? 'bg-green-100 text-green-800 border-green-200'
+                            : user.status === 'suspended'
+                            ? 'bg-red-100 text-red-800 border-red-200'
+                            : user.status === 'pending_password'
+                            ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
+                            : 'bg-gray-100 text-gray-800 border-gray-200'
+                        }`}>
+                          {user.status === 'active' ? 'Active' 
+                            : user.status === 'suspended' ? 'Suspended'
+                            : user.status === 'pending_password' ? 'Pending Password'
+                            : user.status || 'Pending'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                          user.profileUpdated || user.profile_updated
+                            ? 'bg-blue-100 text-blue-800 border-blue-200'
+                            : 'bg-gray-100 text-gray-800 border-gray-200'
+                        }`}>
+                          {user.profileUpdated || user.profile_updated ? 'Updated' : 'Pending'}
+                        </span>
+                        {user.address && (
+                          <p className="text-xs text-muted-foreground mt-1 max-w-xs truncate" title={user.address}>
+                            {user.address}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex gap-2">
-                          {activeTab !== 'parent' && (
+                          {activeTab !== 'parent' && user.status !== 'suspended' && (
                             <button
                               onClick={() => handleResendInvitation(user.email)}
                               className="px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 rounded-md transition-colors"
@@ -205,9 +291,21 @@ export default function ManageUsers() {
                               Resend Invitation
                             </button>
                           )}
-                          <button className="px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted rounded-md transition-colors border border-border">
-                            Edit
-                          </button>
+                          {user.status === 'suspended' ? (
+                            <button
+                              onClick={() => handleActivate(user.id)}
+                              className="px-3 py-1.5 text-xs font-medium text-green-600 hover:bg-green-50 rounded-md transition-colors border border-green-200"
+                            >
+                              Activate
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleSuspend(user.id)}
+                              className="px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors border border-red-200"
+                            >
+                              Suspend
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -237,21 +335,46 @@ export default function ManageUsers() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Email</label>
+                  <label className="block text-sm font-medium mb-2">Email (Username)</label>
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     required
                     className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                    placeholder="user@rkids.church"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">This will be their login username</p>
                 </div>
+                <div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.sendEmail}
+                      onChange={(e) => setFormData({ ...formData, sendEmail: e.target.checked })}
+                      className="rounded border-border"
+                    />
+                    <span className="text-sm font-medium">Send invitation email</span>
+                  </label>
+                </div>
+                {formData.sendEmail && (
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Custom Email Message (Optional)</label>
+                    <textarea
+                      value={formData.customEmailMessage}
+                      onChange={(e) => setFormData({ ...formData, customEmailMessage: e.target.value })}
+                      rows={4}
+                      className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                      placeholder="Leave blank to use default invitation message..."
+                    />
+                  </div>
+                )}
                 <div className="flex gap-3 pt-4">
                   <button
                     type="submit"
                     className="flex-1 px-4 py-2 bg-foreground text-background rounded-md font-medium hover:opacity-90 transition-opacity"
                   >
-                    Create & Send Invitation
+                    {formData.sendEmail ? 'Create & Send Invitation' : 'Create User'}
                   </button>
                   <button
                     type="button"

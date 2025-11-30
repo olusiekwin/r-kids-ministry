@@ -4,18 +4,32 @@ import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
 import { AdminSidebar } from '@/components/AdminSidebar';
 import { PhotoPlaceholder } from '@/components/PhotoPlaceholder';
-import { childrenApi } from '@/services/api';
-import { Child } from '@/types';
+import { childrenApi, groupsApi } from '@/services/api';
+import { Child, GroupName } from '@/types';
+import { toast } from '@/components/ui/sonner';
 
 export default function PendingApprovals() {
   const navigate = useNavigate();
   const [pendingChildren, setPendingChildren] = useState<Child[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [selectedGroupForApproval, setSelectedGroupForApproval] = useState<Record<string, GroupName>>({});
+  const [groups, setGroups] = useState<GroupName[]>([]);
 
   useEffect(() => {
     loadPendingChildren();
+    loadGroups();
   }, []);
+
+  const loadGroups = async () => {
+    try {
+      const groupList = await groupsApi.list();
+      setGroups(groupList as GroupName[]);
+    } catch (error) {
+      console.error('Failed to load groups:', error);
+      setGroups(['Little Angels', 'Saints', 'Disciples', 'Trendsetters']);
+    }
+  };
 
   const loadPendingChildren = async () => {
     try {
@@ -32,16 +46,33 @@ export default function PendingApprovals() {
   };
 
   const handleApprove = async (childId: string) => {
+    const assignedGroup = selectedGroupForApproval[childId];
+    if (!assignedGroup) {
+      toast.error('Group selection required', {
+        description: 'Please select a group for this child before approving.',
+      });
+      return;
+    }
+    
     setLoading(childId);
     
     try {
-      await childrenApi.approve(childId);
+      // Approve child and assign to group
+      await childrenApi.update(childId, {
+        status: 'active',
+        group: assignedGroup,
+      });
+      
       // Reload pending children
       await loadPendingChildren();
-      alert('Child approved successfully! Parent has been notified.');
+      toast.success('Child approved successfully!', {
+        description: 'Child has been assigned to group and parent has been notified.',
+      });
     } catch (error: any) {
       console.error('Failed to approve:', error);
-      alert(error.message || 'Failed to approve. Please try again.');
+      toast.error('Failed to approve', {
+        description: error.message || 'Please try again.',
+      });
     } finally {
       setLoading(null);
     }
@@ -54,10 +85,14 @@ export default function PendingApprovals() {
       await childrenApi.reject(childId, reason);
       // Reload pending children
       await loadPendingChildren();
-      alert('Child registration rejected. Parent has been notified.');
+      toast.success('Child registration rejected', {
+        description: 'Parent has been notified.',
+      });
     } catch (error: any) {
       console.error('Failed to reject:', error);
-      alert(error.message || 'Failed to reject. Please try again.');
+      toast.error('Failed to reject', {
+        description: error.message || 'Please try again.',
+      });
     } finally {
       setLoading(null);
     }
@@ -130,14 +165,40 @@ export default function PendingApprovals() {
                     </div>
                   </div>
 
+                  {/* Group Assignment */}
+                  <div className="mb-4 p-4 bg-muted/50 border border-border rounded-md">
+                    <label className="block text-sm font-medium mb-2">Assign to Group *</label>
+                    <select
+                      value={selectedGroupForApproval[child.id] || ''}
+                      onChange={(e) => {
+                        setSelectedGroupForApproval({
+                          ...selectedGroupForApproval,
+                          [child.id]: e.target.value as GroupName,
+                        });
+                      }}
+                      className="input-field w-full max-w-xs"
+                      disabled={loading === child.id}
+                    >
+                      <option value="">Select group...</option>
+                      {groups.map((group) => (
+                        <option key={group} value={group}>
+                          {group}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Admin must assign child to appropriate group before approval
+                    </p>
+                  </div>
+
                   {/* Actions */}
                   <div className="flex flex-wrap gap-2">
                     <button
                       onClick={() => handleApprove(child.id)}
-                      disabled={loading === child.id}
+                      disabled={loading === child.id || !selectedGroupForApproval[child.id]}
                       className="btn-success"
                     >
-                      {loading === child.id ? 'Processing...' : '✓ Approve'}
+                      {loading === child.id ? 'Processing...' : '✓ Approve & Assign Group'}
                     </button>
                     <button
                       onClick={() => {

@@ -37,14 +37,30 @@ export default function GuardianAuthorize() {
     // In real app: Send OTP to guardian
   };
 
+  const [photoConfirmed, setPhotoConfirmed] = useState(false);
+  const [guardianPhoto, setGuardianPhoto] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedGuardian) {
+      // Load guardian photo if available
+      // In real app, this would come from the guardian's profile
+      setGuardianPhoto(null); // Placeholder - would load from API
+    }
+  }, [selectedGuardian]);
+
   const handleVerifyOTP = async () => {
     if (!childId || !selectedGuardian) return;
+    
+    if (!photoConfirmed) {
+      setError('Please confirm guardian photo before releasing child.');
+      return;
+    }
     
     try {
       setLoading(true);
       setError('');
       await checkOutApi.release(childId, selectedGuardian.id, otp);
-      alert('Child released successfully!');
+      alert('Child released successfully! Parent has been notified.');
       navigate('/teacher');
     } catch (error: any) {
       setError(error.message || 'Invalid OTP. Please try again.');
@@ -122,7 +138,37 @@ export default function GuardianAuthorize() {
           </div>
         ) : (
           <div className="border border-border rounded-md p-6 bg-background shadow-sm max-w-md">
-            <h3 className="font-semibold mb-4">Verify OTP</h3>
+            <h3 className="font-semibold mb-4">Verify Guardian & Release Child</h3>
+            
+            {/* Guardian Photo Confirmation */}
+            <div className="mb-6 p-4 border border-border rounded-md bg-muted/30">
+              <p className="text-sm font-medium mb-3">Guardian Photo Confirmation *</p>
+              <div className="flex items-center gap-4 mb-4">
+                {guardianPhoto ? (
+                  <img src={guardianPhoto} alt={selectedGuardian?.name} className="w-24 h-24 rounded-md object-cover border border-border" />
+                ) : (
+                  <PhotoPlaceholder size="lg" />
+                )}
+                <div className="flex-1">
+                  <p className="font-semibold">{selectedGuardian?.name}</p>
+                  <p className="text-sm text-muted-foreground">{selectedGuardian?.relationship}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Please verify this matches the person picking up the child
+                  </p>
+                </div>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={photoConfirmed}
+                  onChange={(e) => setPhotoConfirmed(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm">I confirm this is the authorized guardian</span>
+              </label>
+            </div>
+
+            {/* OTP Verification */}
             <p className="text-sm text-muted-foreground mb-4">
               OTP sent to {selectedGuardian?.name}
             </p>
@@ -143,6 +189,7 @@ export default function GuardianAuthorize() {
                   setOtpStep(false);
                   setOtp('');
                   setError('');
+                  setPhotoConfirmed(false);
                 }}
                 className="btn-secondary flex-1"
               >
@@ -150,7 +197,7 @@ export default function GuardianAuthorize() {
               </button>
               <button
                 onClick={handleVerifyOTP}
-                disabled={loading || otp.length !== 6}
+                disabled={loading || otp.length !== 6 || !photoConfirmed}
                 className="btn-primary flex-1"
               >
                 {loading ? 'Verifying...' : 'Verify & Release'}

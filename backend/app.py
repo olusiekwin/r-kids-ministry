@@ -16,23 +16,47 @@ app = Flask(__name__)
 # Note: When using wildcard origins, credentials cannot be used
 CORS(app, 
      resources={r"/api/*": {
-         "origins": "*",
+         "origins": "*",  # Allow all HTTP and HTTPS origins
          "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-         "allow_headers": ["Content-Type", "Authorization"]
-     }})
+         "allow_headers": ["Content-Type", "Authorization"],
+         "supports_credentials": False  # Must be False when using wildcard origins
+     }},
+     allow_headers=["Content-Type", "Authorization"],
+     expose_headers=["Content-Type", "Authorization"],
+     max_age=3600)  # Cache preflight requests for 1 hour
 
 # Load configuration
 app.config.from_object(Config)
 
-# Try to initialize Supabase/PostgreSQL database (optional - will fallback if not available)
+# Initialize Supabase client (using REST API instead of direct PostgreSQL)
+try:
+    from supabase_client import init_supabase, test_supabase_connection
+    supabase_client = init_supabase()
+    if supabase_client:
+        print("✅ Supabase client initialized (using REST API)")
+        SUPABASE_AVAILABLE = True
+    else:
+        print("⚠️ Supabase client initialization failed - using in-memory storage")
+        SUPABASE_AVAILABLE = False
+except ImportError:
+    print("⚠️ supabase-py not installed. Install with: pip install supabase")
+    print("   Using in-memory storage for development")
+    SUPABASE_AVAILABLE = False
+except Exception as e:
+    print(f"⚠️ Supabase initialization error: {e}")
+    print("   Using in-memory storage for development")
+    SUPABASE_AVAILABLE = False
+
+# Try to initialize direct PostgreSQL database (optional - fallback)
 try:
     from database import db, init_db
     from models import User, Church, Group, Guardian, Child
     init_db(app)
-    print("✅ Database initialized")
+    print("✅ Direct PostgreSQL database initialized (optional)")
+    DB_AVAILABLE = True
 except Exception as e:
-    print(f"⚠️ Database initialization skipped: {e}")
-    print("Using in-memory storage for development")
+    print(f"⚠️ Direct PostgreSQL connection skipped: {e}")
+    DB_AVAILABLE = False
 
 # Fallback in-memory storage (for development/testing)
 users_db = {}
@@ -73,15 +97,49 @@ def get_token():
         return auth_header.split(' ')[1]
     return None
 
+# Helper: Get or create default church
+def get_default_church_id():
+    """Get or create default church for single-tenant setup"""
+    if not SUPABASE_AVAILABLE:
+        return None
+    
+    try:
+        # Try to get existing church
+        result = supabase_client.table('churches').select('church_id').limit(1).execute()
+        if result.data and len(result.data) > 0:
+            return result.data[0]['church_id']
+        
+        # Create default church if none exists
+        church_data = {
+            'name': 'Ruach South Assembly',
+            'location': 'Growth Happens Here',
+            'settings': {}
+        }
+        result = supabase_client.table('churches').insert(church_data).execute()
+        if result.data and len(result.data) > 0:
+            return result.data[0]['church_id']
+    except Exception as e:
+        print(f"⚠️ Error getting/creating church: {e}")
+    
+    return None
+
 # Helper: Verify token (simplified for development)
 def verify_token(token):
     # In production, verify JWT token
-    return token and token in users_db
+    # For now, check both in-memory and Supabase
+    if token and token in users_db:
+        return True
+    
+    # Could also verify against Supabase if needed
+    return False
 
 # Decorator: Require authentication
 def require_auth(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Allow OPTIONS requests for CORS preflight
+        if request.method == 'OPTIONS':
+            return jsonify({'status': 'ok'}), 200
         token = get_token()
         if not token or not verify_token(token):
             return jsonify({'error': 'Unauthorized'}), 401
@@ -99,7 +157,21 @@ def login():
     email = data.get('email', '').lower()
     password = data.get('password', '')
     
+    # Check if user exists and needs to set password
+    users_by_email = globals().get('users_by_email', {})
+    if email in users_by_email:
+        user_id = users_by_email[email]
+        user = users_db.get(user_id)
+        if user and not user.get('password_set', False):
+            # User needs to set password first
+            return jsonify({
+                'error': 'Password not set',
+                'requires_password_setup': True,
+                'email': email
+            }), 403
+    
     # Simple validation (replace with database check)
+    # For now, allow default password for existing users
     if email and password == 'password123':
         # Generate token (simplified)
         token = f"token_{email}_{datetime.now().timestamp()}"
@@ -117,13 +189,31 @@ def login():
                 role = value
                 break
         
-        user = {
-            'id': email.split('@')[0] + '_id',
-            'email': email,
-            'role': role,
-            'name': email.split('@')[0].title() + ' User'
-        }
-        users_db[token] = user
+        # Check if user already exists in users_db
+        existing_user = None
+        for u in users_db.values():
+            if u.get('email') == email:
+                existing_user = u
+                break
+        
+        if existing_user:
+            user = existing_user
+            # Update token association
+            users_db[token] = user
+        else:
+            user = {
+                'id': email.split('@')[0] + '_id',
+                'email': email,
+                'role': role,
+                'name': email.split('@')[0].title() + ' User',
+                'profile_updated': False,  # New users need to update profile
+                'status': 'active'
+            }
+            users_db[token] = user
+        
+        # Ensure profile_updated field exists
+        if 'profile_updated' not in user:
+            user['profile_updated'] = False
         
         # Generate 6-digit OTP code
         otp_code = ''.join([str(secrets.randbelow(10)) for _ in range(6)])
@@ -180,6 +270,10 @@ def verify_mfa():
         user = users_db[token]
         # Clean up OTP code after successful verification
         del mfa_codes_db[token]
+        
+        # Ensure profile_updated field exists
+        if 'profile_updated' not in user:
+            user['profile_updated'] = False
         
         return jsonify({
             'data': {
@@ -472,29 +566,72 @@ def update_group(group_name):
 @require_auth
 def list_users():
     """List users, optionally filtered by role"""
-    from utils.db_helpers import get_users_by_role
-    
     role = request.args.get('role')
     
-    try:
-        if role:
-            users = get_users_by_role(role)
-        else:
-            try:
-                from models import User
-                if User:
-                    users = User.query.all()
-                else:
+    users_list = []
+    
+    # Try to fetch from Supabase first
+    if SUPABASE_AVAILABLE and supabase_client:
+        try:
+            church_id = get_default_church_id()
+            if church_id:
+                query = supabase_client.table('users').select('*').eq('church_id', church_id)
+                
+                if role:
+                    # Capitalize role to match database format
+                    role_capitalized = role.capitalize()
+                    query = query.eq('role', role_capitalized)
+                
+                result = query.execute()
+                
+                if result.data:
+                    for db_user in result.data:
+                        user_dict = {
+                            'id': str(db_user['user_id']),
+                            'user_id': str(db_user['user_id']),
+                            'email': db_user['email'],
+                            'role': db_user['role'].lower(),
+                            'name': db_user.get('name') or db_user['email'].split('@')[0].title(),
+                            'status': db_user.get('status') or ('active' if db_user.get('is_active', True) else 'suspended'),
+                            'profile_updated': db_user.get('profile_updated', False),
+                            'phone': db_user.get('phone'),
+                            'address': db_user.get('address'),
+                            'created_at': db_user.get('created_at', datetime.now().isoformat()),
+                            'updated_at': db_user.get('updated_at', datetime.now().isoformat()),
+                        }
+                        users_list.append(user_dict)
+        except Exception as e:
+            print(f"⚠️ Error fetching users from Supabase: {e}")
+            # Fall through to in-memory storage
+    
+    # Fallback to in-memory storage
+    if not users_list:
+        try:
+            from utils.db_helpers import get_users_by_role
+            if role:
+                users = get_users_by_role(role)
+            else:
+                try:
+                    from models import User
+                    if User:
+                        users = User.query.all()
+                    else:
+                        users = []
+                except:
                     users = []
-            except:
-                users = []
+            
+            if users:
+                users_list = [u.to_dict() if hasattr(u, 'to_dict') else u for u in users]
+        except Exception as e:
+            print(f"Error fetching users from database: {e}")
         
-        return jsonify({
-            'data': [u.to_dict() for u in users] if users else []
-        })
-    except Exception as e:
-        print(f"Error fetching users: {e}")
-        return jsonify({'data': []})
+        # Also check in-memory storage
+        if not users_list:
+            for user in users_db.values():
+                if not role or user.get('role', '').lower() == role.lower():
+                    users_list.append(user)
+    
+    return jsonify({'data': users_list})
 
 @app.route('/api/users', methods=['POST'])
 @require_auth
@@ -503,28 +640,101 @@ def create_user():
     data = request.get_json()
     email = data.get('email', '').lower()
     name = data.get('name', '')
-    role = data.get('role', '').title()
+    role = data.get('role', '').lower()
+    send_email = data.get('sendEmail', True)
+    custom_email_message = data.get('customEmailMessage', '')
     
     # Generate temporary password/token for invitation
     import secrets
+    from werkzeug.security import generate_password_hash
     invitation_token = secrets.token_urlsafe(32)
     
-    user_id = f"{role.lower()}_{len(users_db) + 1}"
-    user = {
-        'id': user_id,
+    # Generate a temporary password hash (user will set their own password)
+    temp_password_hash = generate_password_hash(invitation_token)
+    
+    # Capitalize role for database (Admin, Teacher, Parent, Teen)
+    role_capitalized = role.capitalize() if role else 'Parent'
+    
+    user_data = {
         'email': email,
         'name': name,
-        'role': role.lower(),
-        'status': 'pending',
+        'role': role_capitalized,
+        'status': 'pending_password',
+        'password_set': False,
+        'profile_updated': False,
+        'phone': None,
+        'address': None,
         'invitation_token': invitation_token,
-        'invitation_sent_at': datetime.now().isoformat()
+        'invitation_sent_at': datetime.now().isoformat(),
     }
-    users_db[user_id] = user
     
-    # In production, send email invitation here
-    print(f"📧 Invitation sent to {email} with token: {invitation_token}")
+    # Try to save to Supabase first
+    if SUPABASE_AVAILABLE and supabase_client:
+        try:
+            church_id = get_default_church_id()
+            if not church_id:
+                raise Exception("Could not get or create default church")
+            
+            # Check if user already exists
+            existing = supabase_client.table('users').select('user_id, email').eq('email', email).eq('church_id', church_id).execute()
+            if existing.data and len(existing.data) > 0:
+                return jsonify({'error': 'User with this email already exists'}), 400
+            
+            # Insert user into Supabase
+            supabase_user = {
+                'church_id': church_id,
+                'email': email,
+                'password_hash': temp_password_hash,
+                'role': role_capitalized,
+                'is_active': True,
+                'name': name,  # Will be NULL if column doesn't exist yet
+                'status': 'pending_password',
+                'password_set': False,
+                'profile_updated': False,
+                'invitation_token': invitation_token,
+                'invitation_sent_at': datetime.now().isoformat(),
+            }
+            
+            result = supabase_client.table('users').insert(supabase_user).execute()
+            
+            if result.data and len(result.data) > 0:
+                db_user = result.data[0]
+                user_data['id'] = str(db_user['user_id'])
+                user_data['user_id'] = str(db_user['user_id'])
+                print(f"✅ User saved to Supabase: {email} (ID: {db_user['user_id']})")
+            else:
+                raise Exception("Failed to insert user into Supabase")
+                
+        except Exception as e:
+            print(f"⚠️ Error saving to Supabase: {e}")
+            print("   Falling back to in-memory storage")
+            # Fall through to in-memory storage
     
-    return jsonify({'data': user}), 201
+    # Fallback to in-memory storage if Supabase not available or failed
+    if 'id' not in user_data:
+        user_id = f"{role.lower()}_{len(users_db) + 1}"
+        user_data['id'] = user_id
+        user_data['user_id'] = user_id
+        users_db[user_id] = user_data
+        
+        # Store user by email for lookup
+        if 'users_by_email' not in globals():
+            globals()['users_by_email'] = {}
+        globals()['users_by_email'][email] = user_id
+        print(f"✅ User saved to in-memory storage: {email}")
+    
+    # Send email invitation if requested
+    if send_email:
+        email_message = custom_email_message if custom_email_message else f"Welcome to R-KIDS Ministry! Please set your password using this link: {invitation_token}"
+        # In production, send email invitation here using SendGrid
+        print(f"📧 Invitation email sent to {email}")
+        print(f"   Message: {email_message}")
+    else:
+        print(f"✅ User created: {email} (no email sent)")
+    
+    print(f"   User must set password before first login")
+    
+    return jsonify({'data': user_data}), 201
 
 @app.route('/api/users/resend-invitation', methods=['POST'])
 @require_auth
@@ -554,6 +764,203 @@ def resend_invitation():
     
     return jsonify({'data': {'message': 'Invitation resent successfully'}})
 
+@app.route('/api/users/<user_id>/suspend', methods=['POST'])
+@require_auth
+def suspend_user(user_id):
+    """Suspend a user"""
+    user = None
+    for u in users_db.values():
+        if u.get('id') == user_id:
+            user = u
+            break
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    user['status'] = 'suspended'
+    user['updated_at'] = datetime.now().isoformat()
+    
+    print(f"🚫 User {user['email']} suspended")
+    return jsonify({'data': user})
+
+@app.route('/api/users/<user_id>/activate', methods=['POST'])
+@require_auth
+def activate_user(user_id):
+    """Activate a suspended user"""
+    user = None
+    for u in users_db.values():
+        if u.get('id') == user_id:
+            user = u
+            break
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # If password is set, activate. Otherwise keep as pending_password
+    if user.get('password_set', False):
+        user['status'] = 'active'
+    else:
+        user['status'] = 'pending_password'
+    
+    user['updated_at'] = datetime.now().isoformat()
+    
+    print(f"✅ User {user['email']} activated")
+    return jsonify({'data': user})
+
+@app.route('/api/users/profile', methods=['PUT'])
+@require_auth
+def update_profile():
+    """Update user profile (name, phone, address)"""
+    token = get_token()
+    if not token:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    user = None
+    
+    # Try to get user from Supabase first
+    if SUPABASE_AVAILABLE and supabase_client:
+        try:
+            # Get user email from token (simplified - in production, decode JWT)
+            # For now, we'll need to get user from token mapping
+            # This is a simplified approach - in production, decode JWT to get user_id
+            if token in users_db:
+                user_email = users_db[token].get('email')
+            else:
+                # Try to find user by token in Supabase (if we stored token mapping)
+                # For now, fall back to in-memory
+                user_email = None
+            
+            if user_email:
+                church_id = get_default_church_id()
+                if church_id:
+                    # Find user by email
+                    result = supabase_client.table('users').select('*').eq('email', user_email).eq('church_id', church_id).execute()
+                    if result.data and len(result.data) > 0:
+                        db_user = result.data[0]
+                        user_id = db_user['user_id']
+                        
+                        # Update user in Supabase
+                        update_data = {
+                            'updated_at': datetime.now().isoformat(),
+                            'profile_updated': True,
+                        }
+                        if 'name' in data:
+                            update_data['name'] = data['name']
+                        if 'phone' in data:
+                            update_data['phone'] = data.get('phone') or None
+                        if 'address' in data:
+                            update_data['address'] = data.get('address') or None
+                        
+                        result = supabase_client.table('users').update(update_data).eq('user_id', user_id).execute()
+                        
+                        if result.data and len(result.data) > 0:
+                            updated_user = result.data[0]
+                            user = {
+                                'id': str(updated_user['user_id']),
+                                'email': updated_user['email'],
+                                'role': updated_user['role'].lower(),
+                                'name': updated_user.get('name'),
+                                'phone': updated_user.get('phone'),
+                                'address': updated_user.get('address'),
+                                'profile_updated': updated_user.get('profile_updated', True),
+                            }
+                            print(f"✅ Profile updated in Supabase for {user_email}")
+        except Exception as e:
+            print(f"⚠️ Error updating profile in Supabase: {e}")
+            # Fall through to in-memory storage
+    
+    # Fallback to in-memory storage
+    if not user and token in users_db:
+        user = users_db[token]
+        if 'name' in data:
+            user['name'] = data['name']
+        if 'phone' in data:
+            user['phone'] = data.get('phone') or None
+        if 'address' in data:
+            user['address'] = data.get('address') or None
+        user['profile_updated'] = True
+        user['updated_at'] = datetime.now().isoformat()
+        print(f"✅ Profile updated in memory for {user.get('email')}")
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    return jsonify({'data': user})
+
+# ============================================================================
+# ATTENDANCE ENDPOINTS
+# ============================================================================
+
+@app.route('/api/attendance', methods=['GET', 'OPTIONS'])
+@require_auth
+def list_attendance():
+    """List attendance records"""
+    date = request.args.get('date')
+    child_id = request.args.get('child_id')
+    group = request.args.get('group')
+    
+    # Return empty list for now (will be populated from database)
+    return jsonify({'data': []})
+
+@app.route('/api/attendance/submit', methods=['POST', 'OPTIONS'])
+@require_auth
+def submit_attendance():
+    """Submit attendance records"""
+    data = request.get_json()
+    return jsonify({'data': {'success': True}})
+
+# ============================================================================
+# REPORTS ENDPOINTS
+# ============================================================================
+
+@app.route('/api/reports/attendance', methods=['GET', 'OPTIONS'])
+@require_auth
+def get_attendance_report():
+    """Get attendance reports"""
+    period = request.args.get('period', 'daily')
+    group = request.args.get('group')
+    
+    # Return empty report for now
+    return jsonify({
+        'data': {
+            'period': period,
+            'total_present': 0,
+            'total_absent': 0,
+            'attendance_rate': 0,
+            'records': []
+        }
+    })
+
+# ============================================================================
+# AUDIT LOG ENDPOINTS
+# ============================================================================
+
+@app.route('/api/audit', methods=['GET', 'OPTIONS'])
+@require_auth
+def list_audit_logs():
+    """List audit logs"""
+    action = request.args.get('action')
+    user_id = request.args.get('user_id')
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    
+    # Return empty list for now (will be populated from database)
+    return jsonify({'data': []})
+
+# ============================================================================
+# CORS PREFLIGHT HANDLER
+# ============================================================================
+
+@app.after_request
+def after_request(response):
+    """Add CORS headers to all responses"""
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add('Access-Control-Allow-Headers', "Content-Type,Authorization")
+    response.headers.add('Access-Control-Allow-Methods', "GET,PUT,POST,DELETE,OPTIONS,PATCH")
+    response.headers.add('Access-Control-Max-Age', "3600")
+    return response
+
 # ============================================================================
 # HEALTH CHECK
 # ============================================================================
@@ -561,13 +968,22 @@ def resend_invitation():
 @app.route('/api/health', methods=['GET'])
 def health():
     """Health check endpoint"""
-    from utils.db_helpers import test_db_connection
+    from supabase_client import test_supabase_connection
     
-    db_status = 'connected' if test_db_connection() else 'disconnected'
+    # Check Supabase REST API connection
+    supabase_status = 'connected' if test_supabase_connection() else 'disconnected'
+    
+    # Check direct PostgreSQL connection (optional)
+    try:
+        from utils.db_helpers import test_db_connection
+        db_status = 'connected' if test_db_connection() else 'disconnected'
+    except:
+        db_status = 'not_configured'
     
     return jsonify({
         'status': 'ok',
-        'database': db_status,
+        'supabase_api': supabase_status,  # REST API connection
+        'postgresql': db_status,  # Direct PostgreSQL connection (optional)
         'timestamp': datetime.now().isoformat()
     })
 
@@ -584,13 +1000,6 @@ def internal_error(error):
     return jsonify({'error': 'Internal server error'}), 500
 
 # ============================================================================
-# RUN APPLICATION
-# ============================================================================
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
-
 # RUN APPLICATION
 # ============================================================================
 

@@ -7,6 +7,12 @@ export interface User {
   email: string;
   role: UserRole;
   name: string;
+  status?: 'active' | 'pending_password' | 'suspended' | 'inactive';
+  phone?: string;
+  address?: string;
+  profileUpdated?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Guardian {

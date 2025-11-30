@@ -193,10 +193,10 @@ export default function ParentDashboard() {
             </div>
           ) : (
             <div className="space-y-6">
-            {myChildren.map((child) => {
+          {myChildren.map((child) => {
               const isPending = child.childStatus === 'pending';
-              
-              return (
+            
+            return (
                 <div key={child.id} className={`border rounded-md shadow-sm ${
                   isPending ? 'border-border bg-muted/30' : 
                   child.status === 'ready_for_pickup' ? 'border-foreground/20 bg-muted/50' :
@@ -204,19 +204,19 @@ export default function ParentDashboard() {
                   'border-border bg-background'
                 }`}>
                   <div className="flex items-start gap-6 p-6">
-                    <PhotoPlaceholder size="lg" />
-                    <div className="flex-1 min-w-0">
+                  <PhotoPlaceholder size="lg" />
+                  <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between mb-2">
                         <div>
-                          <p className="font-mono text-sm text-muted-foreground">
-                            {child.registrationId}
-                          </p>
-                          <p className="text-lg font-medium">
-                            {child.name} ({child.age})
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Group: {child.group}
-                          </p>
+                    <p className="font-mono text-sm text-muted-foreground">
+                      {child.registrationId}
+                    </p>
+                    <p className="text-lg font-medium">
+                      {child.name} ({child.age})
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Group: {child.group}
+                    </p>
                           {child.checkInTime && (
                             <p className="text-xs text-muted-foreground mt-1">
                               Checked in at {child.checkInTime}
@@ -232,8 +232,8 @@ export default function ParentDashboard() {
                         </span>
                       )}
                     </div>
-                  </div>
-                  
+                </div>
+                
                   <div className="flex flex-wrap justify-center gap-3 p-6 pt-0 border-t border-border mt-6">
                     {isPending ? (
                       <p className="text-sm text-muted-foreground">
@@ -242,13 +242,13 @@ export default function ParentDashboard() {
                     ) : (
                       <>
                         {child.status === 'not_checked_in' && (
-                          <button
+                    <button
                             onClick={() => handlePreCheckIn(child.id, child.registrationId)}
                             className="btn-primary"
-                          >
-                            Pre-Check-In
-                          </button>
-                        )}
+                    >
+                      Pre-Check-In
+                    </button>
+                  )}
                         
                         {child.status === 'checked_in' && (
                           <p className="text-sm text-muted-foreground">
@@ -266,30 +266,30 @@ export default function ParentDashboard() {
                           </button>
                         )}
                         
-                        <button
+                  <button
                           onClick={() => navigate(`/parent/child/${child.id}`)}
                           className="btn-secondary"
-                        >
-                          View Profile
-                        </button>
+                  >
+                    View Profile
+                  </button>
                         <button
                           onClick={() => navigate(`/parent/child/${child.id}/checkout`)}
                           className="btn-secondary"
                         >
                           Pre-Check-Out
                         </button>
-                        <button
-                          onClick={() => navigate('/parent/attendance')}
+                  <button
+                    onClick={() => navigate('/parent/attendance')}
                           className="btn-secondary"
-                        >
-                          Attendance
-                        </button>
+                  >
+                    Attendance
+                  </button>
                       </>
                     )}
                   </div>
-                </div>
-              );
-            })}
+              </div>
+            );
+          })}
             </div>
           )}
         </div>

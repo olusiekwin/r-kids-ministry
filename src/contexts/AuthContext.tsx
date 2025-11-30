@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useRef, useCallback } from 'react';
 import { User, UserRole } from '@/types';
 import { authApi } from '@/services/api';
 
@@ -7,13 +7,19 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   verifyMFA: (code: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   setRole: (role: UserRole) => void;
   pendingMFA: boolean;
   otpCode: string | null;
+  showIdleWarning: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Idle timeout: 15 minutes (900000 milliseconds)
+const IDLE_TIMEOUT = 15 * 60 * 1000;
+// Warning timeout: 14 minutes (show warning 1 minute before logout)
+const WARNING_TIMEOUT = 14 * 60 * 1000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
@@ -24,6 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [pendingMFA, setPendingMFA] = useState(false);
   const [tempToken, setTempToken] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState<string | null>(null);
+  
+  // Idle timeout tracking
+  const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastActivityRef = useRef<number>(Date.now());
+  const [showIdleWarning, setShowIdleWarning] = useState(false);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
@@ -44,7 +56,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error: any) {
       console.error('Login error:', error);
-    return false;
+      
+      // Check if password setup is required
+      if (error.message?.includes('Password not set') || error.message?.includes('requires_password_setup')) {
+        // Redirect to password setup page
+        window.location.href = `/set-password?email=${encodeURIComponent(email)}`;
+        return false;
+      }
+      
+      return false;
     }
   };
 
@@ -57,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPendingMFA(false);
       setTempToken(null);
       setOtpCode(null); // Clear OTP code after successful verification
+      lastActivityRef.current = Date.now(); // Reset activity time on login
       return true;
     } catch (error: any) {
       console.error('MFA verification error:', error);
@@ -64,20 +85,117 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
-      await authApi.logout();
+      // Clear idle timers
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+        warningTimerRef.current = null;
+      }
+      setShowIdleWarning(false);
+      
+      // Call logout API
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        try {
+          await authApi.logout();
+        } catch (error) {
+          console.error('Logout API error:', error);
+          // Continue with logout even if API call fails
+        }
+      }
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
+      // Clear all local storage
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
-    setUser(null);
-    setPendingMFA(false);
+      setUser(null);
+      setPendingMFA(false);
       setTempToken(null);
       setOtpCode(null);
+      lastActivityRef.current = Date.now();
+      
+      // Redirect to home page
+      window.location.href = '/';
     }
-  };
+  }, []);
+
+  // Reset idle timer on user activity
+  const resetIdleTimer = useCallback(() => {
+    if (user) {
+      lastActivityRef.current = Date.now();
+      setShowIdleWarning(false);
+      
+      // Clear existing timers
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+      }
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+      }
+      
+      // Set warning timer (1 minute before logout)
+      warningTimerRef.current = setTimeout(() => {
+        setShowIdleWarning(true);
+      }, WARNING_TIMEOUT);
+      
+      // Set logout timer
+      idleTimerRef.current = setTimeout(() => {
+        console.log('Session expired due to inactivity');
+        setShowIdleWarning(false);
+        logout();
+      }, IDLE_TIMEOUT);
+    }
+  }, [user, logout]);
+
+  // Track user activity
+  useEffect(() => {
+    if (!user) {
+      // Clear timers if user is not logged in
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+        warningTimerRef.current = null;
+      }
+      setShowIdleWarning(false);
+      return;
+    }
+
+    // Set up activity listeners
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    const handleActivity = () => {
+      resetIdleTimer();
+    };
+
+    // Add event listeners
+    events.forEach(event => {
+      document.addEventListener(event, handleActivity, true);
+    });
+
+    // Initialize timer
+    resetIdleTimer();
+
+    // Cleanup
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, handleActivity, true);
+      });
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+      }
+      if (warningTimerRef.current) {
+        clearTimeout(warningTimerRef.current);
+      }
+    };
+  }, [user, resetIdleTimer]);
 
   const setRole = (role: UserRole) => {
     if (user) {
@@ -94,7 +212,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       setRole,
       pendingMFA,
-      otpCode
+      otpCode,
+      showIdleWarning
     }}>
       {children}
     </AuthContext.Provider>

@@ -62,11 +62,17 @@ const apiRequest = async <T>(
     });
 
     if (!response.ok) {
-      // Handle 401 specifically - clear invalid token
+      // Handle 401 specifically - clear invalid token and redirect to login
       if (response.status === 401) {
         localStorage.removeItem('auth_token');
         localStorage.removeItem('user');
         const errorData = await response.json().catch(() => ({ message: 'Unauthorized. Please login again.' }));
+        
+        // Only redirect if we're not already on the login page
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+        
         throw new Error(errorData.message || 'Unauthorized. Please login again.');
       }
       await handleApiError(response);
@@ -123,6 +129,16 @@ export const authApi = {
     return apiRequest(API_ENDPOINTS.AUTH.LOGOUT, {
       method: 'POST',
     });
+  },
+
+  setPassword: async (email: string, password: string, invitationToken?: string) => {
+    return apiRequest<{ token: string; requiresMFA: boolean; otpCode?: string; user: any }>(
+      '/auth/set-password',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, password, invitation_token: invitationToken }),
+      }
+    );
   },
 };
 
@@ -445,7 +461,13 @@ export const usersApi = {
     return apiRequest<User[]>(API_ENDPOINTS.USERS.BY_ROLE(role));
   },
   
-  create: async (data: { name: string; email: string; role: string }): Promise<User> => {
+  create: async (data: { 
+    name: string; 
+    email: string; 
+    role: string;
+    sendEmail?: boolean;
+    customEmailMessage?: string;
+  }): Promise<User> => {
     return apiRequest<User>(API_ENDPOINTS.USERS.LIST, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -457,6 +479,33 @@ export const usersApi = {
       method: 'POST',
       body: JSON.stringify({ email }),
     });
+  },
+  
+  suspend: async (id: string): Promise<User> => {
+    return apiRequest<User>(API_ENDPOINTS.USERS.SUSPEND(id), {
+      method: 'POST',
+    });
+  },
+  
+  activate: async (id: string): Promise<User> => {
+    return apiRequest<User>(API_ENDPOINTS.USERS.ACTIVATE(id), {
+      method: 'POST',
+    });
+  },
+  
+  updateProfile: async (data: { 
+    name?: string;
+    phone?: string;
+    address?: string;
+  }): Promise<User> => {
+    return apiRequest<User>(API_ENDPOINTS.USERS.UPDATE_PROFILE, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+  
+  get: async (id: string): Promise<User> => {
+    return apiRequest<User>(API_ENDPOINTS.USERS.GET(id));
   },
 };
 

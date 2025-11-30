@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
 import { GroupName } from '@/types';
+import { toast } from '@/components/ui/sonner';
 
 export default function AddChildToGroup() {
   const navigate = useNavigate();
@@ -30,10 +31,14 @@ export default function AddChildToGroup() {
     
     try {
       await new Promise(resolve => setTimeout(resolve, 1500));
-      alert('Child added to group! Admin will review and approve your request.');
-      navigate('/teacher');
+      toast.success('Child added to group!', {
+        description: 'Admin will review and approve your request.',
+      });
+      setTimeout(() => navigate('/teacher'), 1000);
     } catch (error) {
-      alert('Failed to submit. Please try again.');
+      toast.error('Failed to submit', {
+        description: 'Please try again.',
+      });
     } finally {
       setLoading(false);
     }

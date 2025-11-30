@@ -201,31 +201,31 @@ export default function Reports() {
           </div>
         ) : (
           <div className="border border-border rounded-md overflow-hidden bg-background shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full">
+          <div className="overflow-x-auto">
+            <table className="w-full">
                 <thead>
-                  <tr>
-                    <th className="table-header">Date</th>
-                    <th className="table-header">Group</th>
-                    <th className="table-header">Present</th>
-                    <th className="table-header">Absent</th>
-                    <th className="table-header">Teacher</th>
-                  </tr>
-                </thead>
-                <tbody>
+                <tr>
+                  <th className="table-header">Date</th>
+                  <th className="table-header">Group</th>
+                  <th className="table-header">Present</th>
+                  <th className="table-header">Absent</th>
+                  <th className="table-header">Teacher</th>
+                </tr>
+              </thead>
+              <tbody>
                   {attendance.map((record) => (
                     <tr key={record.id} className="hover:bg-muted/30 transition-colors border-b border-border last:border-0">
-                      <td className="table-cell">{record.date}</td>
-                      <td className="table-cell">{record.group}</td>
+                    <td className="table-cell">{record.date}</td>
+                    <td className="table-cell">{record.group}</td>
                       <td className="table-cell">{record.present}</td>
                       <td className="table-cell">{record.absent}</td>
-                      <td className="table-cell">{record.teacher}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    <td className="table-cell">{record.teacher}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+        </div>
         )}
 
         <button onClick={() => navigate('/admin')} className="btn-secondary mt-6">

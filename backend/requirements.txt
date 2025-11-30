@@ -11,6 +11,9 @@ psycopg2-binary==2.9.9
 SQLAlchemy==2.0.23
 alembic==1.13.1
 
+# Supabase Client (for REST API)
+supabase==2.3.4
+
 # Authentication & Security
 bcrypt==4.1.2
 pyotp==2.9.0

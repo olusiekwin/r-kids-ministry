@@ -123,7 +123,7 @@ export default function AdminDashboard() {
                   </button>
                 </div>
               </div>
-            </div>
+          </div>
 
             {/* Quick Actions */}
             <div className="border border-border rounded-lg p-6 bg-background">
@@ -157,22 +157,22 @@ export default function AdminDashboard() {
                   <p className="font-medium mb-1">Manage Groups</p>
                   <p className="text-sm text-muted-foreground">Assign teachers to groups</p>
                 </button>
-                <button
+              <button
                   onClick={() => navigate('/admin/guardians')}
                   className="p-4 border border-border rounded-lg hover:bg-muted transition-colors text-left"
-                >
+              >
                   <p className="font-medium mb-1">Manage Guardians</p>
                   <p className="text-sm text-muted-foreground">View and manage all guardians</p>
-                </button>
-                <button
+              </button>
+              <button
                   onClick={() => navigate('/admin/reports')}
                   className="p-4 border border-border rounded-lg hover:bg-muted transition-colors text-left"
-                >
+              >
                   <p className="font-medium mb-1">View Reports</p>
                   <p className="text-sm text-muted-foreground">Attendance and analytics</p>
-                </button>
-              </div>
+              </button>
             </div>
+          </div>
           </>
         )}
       </main>

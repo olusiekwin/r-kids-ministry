@@ -112,6 +112,9 @@ export const API_ENDPOINTS = {
     GET: (id: string) => `/users/${id}`,
     UPDATE: (id: string) => `/users/${id}`,
     BY_ROLE: (role: string) => `/users?role=${role}`,
+    SUSPEND: (id: string) => `/users/${id}/suspend`,
+    ACTIVATE: (id: string) => `/users/${id}/activate`,
+    UPDATE_PROFILE: '/users/profile',
   },
 
   // QR Codes

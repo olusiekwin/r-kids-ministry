@@ -4,9 +4,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 
 import Index from "./pages/Index";
 import Login from "./pages/Login";
+import SetPassword from "./pages/SetPassword";
+import UpdateProfile from "./pages/UpdateProfile";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ManageUsers from "./pages/admin/ManageUsers";
 import CreateParent from "./pages/admin/CreateParent";
@@ -48,46 +51,48 @@ const App = () => (
             }}
           >
             <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<Login />} />
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/set-password" element={<SetPassword />} />
+              <Route path="/update-profile" element={<UpdateProfile />} />
             
             {/* Admin Routes */}
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/manage-users" element={<ManageUsers />} />
-            <Route path="/admin/children" element={<Children />} />
-            <Route path="/admin/check-ins" element={<CheckIns />} />
-            <Route path="/admin/parents" element={<AdminDashboard />} />
-            <Route path="/admin/create-parent" element={<CreateParent />} />
-            <Route path="/admin/pending-approvals" element={<PendingApprovals />} />
-            <Route path="/admin/guardians" element={<ManageGuardians />} />
-            <Route path="/admin/groups" element={<Groups />} />
-            <Route path="/admin/audit-log" element={<AuditLog />} />
-            <Route path="/admin/reports" element={<Reports />} />
+            <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/manage-users" element={<ProtectedRoute requiredRole="admin"><ManageUsers /></ProtectedRoute>} />
+            <Route path="/admin/children" element={<ProtectedRoute requiredRole="admin"><Children /></ProtectedRoute>} />
+            <Route path="/admin/check-ins" element={<ProtectedRoute requiredRole="admin"><CheckIns /></ProtectedRoute>} />
+            <Route path="/admin/parents" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/admin/create-parent" element={<ProtectedRoute requiredRole="admin"><CreateParent /></ProtectedRoute>} />
+            <Route path="/admin/pending-approvals" element={<ProtectedRoute requiredRole="admin"><PendingApprovals /></ProtectedRoute>} />
+            <Route path="/admin/guardians" element={<ProtectedRoute requiredRole="admin"><ManageGuardians /></ProtectedRoute>} />
+            <Route path="/admin/groups" element={<ProtectedRoute requiredRole="admin"><Groups /></ProtectedRoute>} />
+            <Route path="/admin/audit-log" element={<ProtectedRoute requiredRole="admin"><AuditLog /></ProtectedRoute>} />
+            <Route path="/admin/reports" element={<ProtectedRoute requiredRole="admin"><Reports /></ProtectedRoute>} />
             
             {/* Teacher Routes */}
-            <Route path="/teacher" element={<TeacherDashboard />} />
-            <Route path="/teacher/checkin" element={<CheckIn />} />
-            <Route path="/teacher/manual-checkin" element={<ManualCheckIn />} />
-            <Route path="/teacher/add-child" element={<AddChildToGroup />} />
-            <Route path="/teacher/authorize/:childId" element={<GuardianAuthorize />} />
-            <Route path="/teacher/send-pickup/:childId" element={<SendPickupNotification />} />
-            <Route path="/teacher/attendance" element={<Reports />} />
+            <Route path="/teacher" element={<ProtectedRoute requiredRole="teacher"><TeacherDashboard /></ProtectedRoute>} />
+            <Route path="/teacher/checkin" element={<ProtectedRoute requiredRole="teacher"><CheckIn /></ProtectedRoute>} />
+            <Route path="/teacher/manual-checkin" element={<ProtectedRoute requiredRole="teacher"><ManualCheckIn /></ProtectedRoute>} />
+            <Route path="/teacher/add-child" element={<ProtectedRoute requiredRole="teacher"><AddChildToGroup /></ProtectedRoute>} />
+            <Route path="/teacher/authorize/:childId" element={<ProtectedRoute requiredRole="teacher"><GuardianAuthorize /></ProtectedRoute>} />
+            <Route path="/teacher/send-pickup/:childId" element={<ProtectedRoute requiredRole="teacher"><SendPickupNotification /></ProtectedRoute>} />
+            <Route path="/teacher/attendance" element={<ProtectedRoute requiredRole="teacher"><Reports /></ProtectedRoute>} />
             
             {/* Parent Routes */}
-            <Route path="/parent" element={<ParentDashboard />} />
-            <Route path="/parent/children" element={<ParentDashboard />} />
-            <Route path="/parent/add-child" element={<AddChild />} />
-            <Route path="/parent/notifications" element={<Notifications />} />
-            <Route path="/parent/child/:childId" element={<ChildProfile />} />
-            <Route path="/parent/child/:childId/checkout" element={<PreCheckOut />} />
-            <Route path="/parent/attendance" element={<ParentAttendance />} />
+            <Route path="/parent" element={<ProtectedRoute requiredRole="parent"><ParentDashboard /></ProtectedRoute>} />
+            <Route path="/parent/children" element={<ProtectedRoute requiredRole="parent"><ParentDashboard /></ProtectedRoute>} />
+            <Route path="/parent/add-child" element={<ProtectedRoute requiredRole="parent"><AddChild /></ProtectedRoute>} />
+            <Route path="/parent/notifications" element={<ProtectedRoute requiredRole="parent"><Notifications /></ProtectedRoute>} />
+            <Route path="/parent/child/:childId" element={<ProtectedRoute requiredRole="parent"><ChildProfile /></ProtectedRoute>} />
+            <Route path="/parent/child/:childId/checkout" element={<ProtectedRoute requiredRole="parent"><PreCheckOut /></ProtectedRoute>} />
+            <Route path="/parent/attendance" element={<ProtectedRoute requiredRole="parent"><ParentAttendance /></ProtectedRoute>} />
             
             {/* Teen Routes */}
-            <Route path="/teen" element={<TeenDashboard />} />
-            <Route path="/teen/attendance" element={<TeenDashboard />} />
+            <Route path="/teen" element={<ProtectedRoute requiredRole="teen"><TeenDashboard /></ProtectedRoute>} />
+            <Route path="/teen/attendance" element={<ProtectedRoute requiredRole="teen"><TeenDashboard /></ProtectedRoute>} />
             
             {/* Settings */}
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
             
             {/* 404 */}
             <Route path="*" element={<NotFound />} />
