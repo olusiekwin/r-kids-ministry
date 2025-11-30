@@ -7,12 +7,16 @@ Flask-Migrate==4.0.5
 python-dotenv==1.0.0
 
 # Database
-psycopg2-binary==2.9.9
+# psycopg2-binary is optional - only needed for direct PostgreSQL connection
+# We use Supabase REST API, so this is not required
+# psycopg2-binary>=2.9.9  # Uncomment if you need direct PostgreSQL access
 SQLAlchemy==2.0.23
 alembic==1.13.1
 
 # Supabase Client (for REST API)
 supabase==2.3.4
+httpx[http2]>=0.25.2,<0.28  # Compatible with supabase 2.3.4 (proxy parameter fix)
+httpcore>=1.0.9  # Required for httpx
 
 # Authentication & Security
 bcrypt==4.1.2
@@ -21,7 +25,7 @@ cryptography==41.0.7
 
 # QR Code Generation
 qrcode[pil]==7.4.2
-Pillow==10.1.0
+Pillow>=10.2.0  # Updated for Python 3.14 compatibility
 
 # Email & SMS
 sendgrid==6.11.0

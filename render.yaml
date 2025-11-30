@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: r-kids-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && gunicorn --bind 0.0.0.0:$PORT app:app --workers 2 --timeout 120 --worker-class gevent
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+        optional: true
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+        optional: true
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+        optional: true
+      - key: FRONTEND_URL
+        value: https://your-frontend-url.onrender.com
+    healthCheckPath: /api/health
+

@@ -171,6 +171,13 @@ export default function AdminDashboard() {
                   <p className="font-medium mb-1">View Reports</p>
                   <p className="text-sm text-muted-foreground">Attendance and analytics</p>
               </button>
+              <button
+                  onClick={() => navigate('/admin/user-activity')}
+                  className="p-4 border border-border rounded-lg hover:bg-muted transition-colors text-left"
+              >
+                  <p className="font-medium mb-1">User Activity Tracking</p>
+                  <p className="text-sm text-muted-foreground">Monitor user activities and actions</p>
+              </button>
             </div>
           </div>
           </>

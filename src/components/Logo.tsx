@@ -8,7 +8,7 @@ interface LogoProps extends ImgHTMLAttributes<HTMLImageElement> {
 export function Logo({ size = 200, className, ...props }: LogoProps) {
   return (
     <img
-      src="/a5235d2c-5376-4e2f-9c00-675e66ecdefd.jpg"
+      src="/logo.jpg"
       alt="R-KIDS Logo - Ruach South Assembly"
       width={size}
       height={size}

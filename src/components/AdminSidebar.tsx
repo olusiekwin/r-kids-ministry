@@ -14,6 +14,7 @@ export function AdminSidebar() {
   const menuItems: SidebarItem[] = [
     { label: 'Dashboard', path: '/admin' },
     { label: 'Manage Users', path: '/admin/manage-users' },
+    { label: 'User Activity', path: '/admin/user-activity' },
     { label: 'All Children', path: '/admin/children' },
     { label: 'Pending Approvals', path: '/admin/pending-approvals', badge: 0 },
     { label: 'Check-Ins & Check-Outs', path: '/admin/check-ins' },

@@ -8,8 +8,10 @@ from flask_cors import CORS
 from datetime import datetime, timedelta
 import os
 import secrets
+import json
 from functools import wraps
 from config import Config
+from utils.audit_logger import log_activity, extract_ip_address, extract_user_agent, get_user_from_token
 
 app = Flask(__name__)
 # Allow all origins for CORS (http and https)
@@ -100,7 +102,7 @@ def get_token():
 # Helper: Get or create default church
 def get_default_church_id():
     """Get or create default church for single-tenant setup"""
-    if not SUPABASE_AVAILABLE:
+    if not SUPABASE_AVAILABLE or not supabase_client:
         return None
     
     try:
@@ -117,9 +119,13 @@ def get_default_church_id():
         }
         result = supabase_client.table('churches').insert(church_data).execute()
         if result.data and len(result.data) > 0:
-            return result.data[0]['church_id']
+            church_id = result.data[0]['church_id']
+            print(f"✅ Created default church: {church_id}")
+            return church_id
     except Exception as e:
         print(f"⚠️ Error getting/creating church: {e}")
+        import traceback
+        traceback.print_exc()
     
     return None
 
@@ -227,6 +233,23 @@ def login():
         
         print(f"🔐 Generated OTP for {email}: {otp_code} (expires at {expires_at.strftime('%H:%M:%S')})")
         
+        # Log login attempt (before MFA verification)
+        if SUPABASE_AVAILABLE and supabase_client:
+            church_id = get_default_church_id()
+            user_id_for_log = existing_user.get('id') if existing_user else None
+            if church_id:
+                log_activity(
+                    supabase_client=supabase_client,
+                    church_id=church_id,
+                    user_id=user_id_for_log,
+                    action_performed='LOGIN_ATTEMPT',
+                    entity_type='user',
+                    entity_id=user_id_for_log,
+                    details={'email': email, 'status': 'pending_mfa'},
+                    ip_address=extract_ip_address(request),
+                    user_agent=extract_user_agent(request)
+                )
+        
         return jsonify({
             'data': {
                 'token': token,
@@ -274,6 +297,23 @@ def verify_mfa():
         # Ensure profile_updated field exists
         if 'profile_updated' not in user:
             user['profile_updated'] = False
+        
+        # Log successful login
+        if SUPABASE_AVAILABLE and supabase_client:
+            church_id = get_default_church_id()
+            user_id_for_log = user.get('id') or user.get('user_id')
+            if church_id:
+                log_activity(
+                    supabase_client=supabase_client,
+                    church_id=church_id,
+                    user_id=user_id_for_log,
+                    action_performed='LOGIN',
+                    entity_type='user',
+                    entity_id=user_id_for_log,
+                    details={'email': user.get('email'), 'role': user.get('role')},
+                    ip_address=extract_ip_address(request),
+                    user_agent=extract_user_agent(request)
+                )
         
         return jsonify({
             'data': {
@@ -368,6 +408,32 @@ def create_child():
         'submittedAt': datetime.now().isoformat()
     }
     children_db[child_id] = child
+    
+    # Log child creation
+    if SUPABASE_AVAILABLE and supabase_client:
+        church_id = get_default_church_id()
+        token = get_token()
+        creator_user = get_user_from_token(users_db, token) if token else None
+        creator_id = creator_user.get('id') or creator_user.get('user_id') if creator_user else None
+        
+        if church_id:
+            log_activity(
+                supabase_client=supabase_client,
+                church_id=church_id,
+                user_id=creator_id,
+                action_performed='CREATE_CHILD',
+                entity_type='child',
+                entity_id=child_id,
+                details={
+                    'child_name': child.get('name'),
+                    'parent_id': child.get('parentId'),
+                    'group': child.get('group'),
+                    'status': 'pending'
+                },
+                ip_address=extract_ip_address(request),
+                user_agent=extract_user_agent(request)
+            )
+    
     return jsonify({'data': child}), 201
 
 @app.route('/api/children/pending', methods=['GET'])
@@ -385,6 +451,31 @@ def approve_child(child_id):
         child = children_db[child_id]
         child['status'] = 'active'
         child['registrationId'] = f"RS{child['parentId'].split('_')[1] if '_' in child['parentId'] else '000'}/{len([c for c in children_db.values() if c.get('parentId') == child['parentId']])}"
+        
+        # Log child approval
+        if SUPABASE_AVAILABLE and supabase_client:
+            church_id = get_default_church_id()
+            token = get_token()
+            admin_user = get_user_from_token(users_db, token) if token else None
+            admin_id = admin_user.get('id') or admin_user.get('user_id') if admin_user else None
+            
+            if church_id:
+                log_activity(
+                    supabase_client=supabase_client,
+                    church_id=church_id,
+                    user_id=admin_id,
+                    action_performed='APPROVE_CHILD',
+                    entity_type='child',
+                    entity_id=child_id,
+                    details={
+                        'child_name': child.get('name'),
+                        'registration_id': child.get('registrationId'),
+                        'parent_id': child.get('parentId')
+                    },
+                    ip_address=extract_ip_address(request),
+                    user_agent=extract_user_agent(request)
+                )
+        
         return jsonify({'data': child})
     return jsonify({'error': 'Child not found'}), 404
 
@@ -397,6 +488,31 @@ def reject_child(child_id):
         child = children_db[child_id]
         child['status'] = 'rejected'
         child['rejectionReason'] = data.get('reason', '')
+        
+        # Log child rejection
+        if SUPABASE_AVAILABLE and supabase_client:
+            church_id = get_default_church_id()
+            token = get_token()
+            admin_user = get_user_from_token(users_db, token) if token else None
+            admin_id = admin_user.get('id') or admin_user.get('user_id') if admin_user else None
+            
+            if church_id:
+                log_activity(
+                    supabase_client=supabase_client,
+                    church_id=church_id,
+                    user_id=admin_id,
+                    action_performed='REJECT_CHILD',
+                    entity_type='child',
+                    entity_id=child_id,
+                    details={
+                        'child_name': child.get('name'),
+                        'rejection_reason': data.get('reason', ''),
+                        'parent_id': child.get('parentId')
+                    },
+                    ip_address=extract_ip_address(request),
+                    user_agent=extract_user_agent(request)
+                )
+        
         return jsonify({'data': child})
     return jsonify({'error': 'Child not found'}), 404
 
@@ -681,19 +797,27 @@ def create_user():
                 return jsonify({'error': 'User with this email already exists'}), 400
             
             # Insert user into Supabase
+            # Start with required fields
             supabase_user = {
                 'church_id': church_id,
                 'email': email,
                 'password_hash': temp_password_hash,
                 'role': role_capitalized,
                 'is_active': True,
-                'name': name,  # Will be NULL if column doesn't exist yet
-                'status': 'pending_password',
-                'password_set': False,
-                'profile_updated': False,
-                'invitation_token': invitation_token,
-                'invitation_sent_at': datetime.now().isoformat(),
             }
+            
+            # Add optional fields if columns exist (they may not if migration hasn't run)
+            # We'll try to add them, but Supabase will ignore if columns don't exist
+            try:
+                supabase_user['name'] = name
+                supabase_user['status'] = 'pending_password'
+                supabase_user['password_set'] = False
+                supabase_user['profile_updated'] = False
+                supabase_user['invitation_token'] = invitation_token
+                supabase_user['invitation_sent_at'] = datetime.now().isoformat()
+            except:
+                # If these fields cause issues, we'll insert without them
+                pass
             
             result = supabase_client.table('users').insert(supabase_user).execute()
             
@@ -702,6 +826,28 @@ def create_user():
                 user_data['id'] = str(db_user['user_id'])
                 user_data['user_id'] = str(db_user['user_id'])
                 print(f"✅ User saved to Supabase: {email} (ID: {db_user['user_id']})")
+                
+                # Log user creation
+                token = get_token()
+                creator_user = get_user_from_token(users_db, token) if token else None
+                creator_id = creator_user.get('id') or creator_user.get('user_id') if creator_user else None
+                
+                log_activity(
+                    supabase_client=supabase_client,
+                    church_id=church_id,
+                    user_id=creator_id,
+                    action_performed='CREATE_USER',
+                    entity_type='user',
+                    entity_id=str(db_user['user_id']),
+                    details={
+                        'created_user_email': email,
+                        'created_user_role': role_capitalized,
+                        'created_user_name': name,
+                        'invitation_sent': send_email
+                    },
+                    ip_address=extract_ip_address(request),
+                    user_agent=extract_user_agent(request)
+                )
             else:
                 raise Exception("Failed to insert user into Supabase")
                 
@@ -780,6 +926,29 @@ def suspend_user(user_id):
     user['status'] = 'suspended'
     user['updated_at'] = datetime.now().isoformat()
     
+    # Log user suspension
+    if SUPABASE_AVAILABLE and supabase_client:
+        church_id = get_default_church_id()
+        token = get_token()
+        admin_user = get_user_from_token(users_db, token) if token else None
+        admin_id = admin_user.get('id') or admin_user.get('user_id') if admin_user else None
+        
+        if church_id:
+            log_activity(
+                supabase_client=supabase_client,
+                church_id=church_id,
+                user_id=admin_id,
+                action_performed='SUSPEND_USER',
+                entity_type='user',
+                entity_id=user_id,
+                details={
+                    'suspended_user_email': user.get('email'),
+                    'suspended_user_name': user.get('name')
+                },
+                ip_address=extract_ip_address(request),
+                user_agent=extract_user_agent(request)
+            )
+    
     print(f"🚫 User {user['email']} suspended")
     return jsonify({'data': user})
 
@@ -803,6 +972,29 @@ def activate_user(user_id):
         user['status'] = 'pending_password'
     
     user['updated_at'] = datetime.now().isoformat()
+    
+    # Log user activation
+    if SUPABASE_AVAILABLE and supabase_client:
+        church_id = get_default_church_id()
+        token = get_token()
+        admin_user = get_user_from_token(users_db, token) if token else None
+        admin_id = admin_user.get('id') or admin_user.get('user_id') if admin_user else None
+        
+        if church_id:
+            log_activity(
+                supabase_client=supabase_client,
+                church_id=church_id,
+                user_id=admin_id,
+                action_performed='ACTIVATE_USER',
+                entity_type='user',
+                entity_id=user_id,
+                details={
+                    'activated_user_email': user.get('email'),
+                    'activated_user_name': user.get('name')
+                },
+                ip_address=extract_ip_address(request),
+                user_agent=extract_user_agent(request)
+            )
     
     print(f"✅ User {user['email']} activated")
     return jsonify({'data': user})
@@ -939,14 +1131,94 @@ def get_attendance_report():
 @app.route('/api/audit', methods=['GET', 'OPTIONS'])
 @require_auth
 def list_audit_logs():
-    """List audit logs"""
+    """List audit logs with filtering options"""
     action = request.args.get('action')
     user_id = request.args.get('user_id')
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
     
-    # Return empty list for now (will be populated from database)
-    return jsonify({'data': []})
+    logs_list = []
+    
+    # Try to fetch from Supabase
+    if SUPABASE_AVAILABLE and supabase_client:
+        try:
+            church_id = get_default_church_id()
+            if church_id:
+                query = supabase_client.table('audit_logs').select('*').eq('church_id', church_id).limit(500)
+                
+                if action:
+                    query = query.eq('action_performed', action)
+                if user_id:
+                    query = query.eq('user_id', user_id)
+                if date_from:
+                    query = query.gte('timestamp', date_from)
+                if date_to:
+                    query = query.lte('timestamp', date_to)
+                
+                result = query.execute()
+                
+                if result.data:
+                    # Collect unique user IDs
+                    user_ids = set()
+                    for log in result.data:
+                        if log.get('user_id'):
+                            user_ids.add(log['user_id'])
+                    
+                    # Fetch user info for all users in one query
+                    users_map = {}
+                    if user_ids:
+                        try:
+                            users_result = supabase_client.table('users').select('user_id, email, name').in_('user_id', list(user_ids)).execute()
+                            if users_result.data:
+                                for user in users_result.data:
+                                    users_map[str(user['user_id'])] = {
+                                        'email': user.get('email', ''),
+                                        'name': user.get('name', '')
+                                    }
+                        except Exception as e:
+                            print(f"⚠️ Error fetching user info: {e}")
+                    
+                    for log in result.data:
+                        # Get user info from map
+                        log_user_id = str(log.get('user_id', '')) if log.get('user_id') else None
+                        user_info = users_map.get(log_user_id, {}) if log_user_id else {}
+                        user_name = user_info.get('name') or user_info.get('email', 'Unknown') if user_info else 'Unknown'
+                        user_email = user_info.get('email', '') if user_info else ''
+                        
+                        # Parse details if it's a JSON string
+                        details_str = log.get('details', '')
+                        try:
+                            if isinstance(details_str, str):
+                                details = json.loads(details_str) if details_str else {}
+                            else:
+                                details = details_str or {}
+                        except:
+                            details = {}
+                        
+                        log_entry = {
+                            'id': str(log['log_id']),
+                            'timestamp': log.get('timestamp', ''),
+                            'user': user_name,
+                            'user_id': log_user_id,
+                            'user_email': user_email,
+                            'action': log.get('action_performed', ''),
+                            'entity_type': log.get('entity_type'),
+                            'entity_id': log.get('entity_id'),
+                            'details': details,
+                            'ip': log.get('ip_address'),
+                            'user_agent': log.get('user_agent'),
+                        }
+                        logs_list.append(log_entry)
+                    
+                    # Sort by timestamp descending (most recent first)
+                    logs_list.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+                        
+        except Exception as e:
+            print(f"⚠️ Error fetching audit logs from Supabase: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    return jsonify({'data': logs_list})
 
 # ============================================================================
 # CORS PREFLIGHT HANDLER
@@ -967,25 +1239,43 @@ def after_request(response):
 
 @app.route('/api/health', methods=['GET'])
 def health():
-    """Health check endpoint"""
-    from supabase_client import test_supabase_connection
+    """Health check endpoint with detailed Supabase connection info"""
+    from supabase_client import test_supabase_connection, get_supabase
+    
+    health_info = {
+        'status': 'ok',
+        'timestamp': datetime.now().isoformat()
+    }
     
     # Check Supabase REST API connection
     supabase_status = 'connected' if test_supabase_connection() else 'disconnected'
+    health_info['supabase_api'] = supabase_status
+    
+    # Get detailed Supabase info if connected
+    if supabase_status == 'connected':
+        try:
+            client = get_supabase()
+            if client:
+                # Try to get church count
+                try:
+                    result = client.table('churches').select('count', count='exact').limit(1).execute()
+                    health_info['supabase_tables_accessible'] = True
+                    health_info['churches_count'] = result.count if hasattr(result, 'count') else 'N/A'
+                except:
+                    health_info['supabase_tables_accessible'] = False
+                    health_info['note'] = 'Connection works but tables may not exist'
+        except Exception as e:
+            health_info['supabase_error'] = str(e)
     
     # Check direct PostgreSQL connection (optional)
     try:
         from utils.db_helpers import test_db_connection
         db_status = 'connected' if test_db_connection() else 'disconnected'
+        health_info['postgresql'] = db_status  # Direct PostgreSQL connection (optional)
     except:
-        db_status = 'not_configured'
+        health_info['postgresql'] = 'not_configured'
     
-    return jsonify({
-        'status': 'ok',
-        'supabase_api': supabase_status,  # REST API connection
-        'postgresql': db_status,  # Direct PostgreSQL connection (optional)
-        'timestamp': datetime.now().isoformat()
-    })
+    return jsonify(health_info)
 
 # ============================================================================
 # ERROR HANDLERS
@@ -1005,4 +1295,6 @@ def internal_error(error):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    # Only run in debug mode if not in production
+    debug = os.environ.get('FLASK_ENV') != 'production'
+    app.run(host='0.0.0.0', port=port, debug=debug)
