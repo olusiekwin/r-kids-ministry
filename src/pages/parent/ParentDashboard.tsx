@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
+import { ParentSidebar } from '@/components/ParentSidebar';
 import { PhotoPlaceholder } from '@/components/PhotoPlaceholder';
 import { QRCodeGenerator } from '@/components/QRCodeGenerator';
-import { childrenApi, checkInApi } from '@/services/api';
+import { childrenApi, checkInApi, analyticsApi } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Child } from '@/types';
-import { CheckCircle2, Clock, Bell, X } from 'lucide-react';
+import { CheckCircle2, Clock, Bell, X, BarChart3, Calendar, TrendingUp } from 'lucide-react';
 
 type ChildStatus = 'not_checked_in' | 'checked_in' | 'ready_for_pickup' | 'checked_out';
 
@@ -29,10 +30,18 @@ export default function ParentDashboard() {
   const [showQRModal, setShowQRModal] = useState<{ childId: string; qrData: string } | null>(null);
   const [myChildren, setMyChildren] = useState<ChildWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [childAnalytics, setChildAnalytics] = useState<Record<string, any>>({});
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   useEffect(() => {
     loadChildren();
   }, [user]);
+
+  useEffect(() => {
+    if (myChildren.length > 0) {
+      loadChildAnalytics();
+    }
+  }, [myChildren]);
 
   const loadChildren = async () => {
     if (!user?.id) return;
@@ -63,6 +72,26 @@ export default function ParentDashboard() {
       setMyChildren([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadChildAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const analytics: Record<string, any> = {};
+      for (const child of myChildren) {
+        try {
+          const data = await analyticsApi.getChildAnalytics(child.id);
+          analytics[child.id] = data;
+        } catch (error) {
+          console.error(`Failed to load analytics for child ${child.id}:`, error);
+        }
+      }
+      setChildAnalytics(analytics);
+    } catch (error) {
+      console.error('Failed to load child analytics:', error);
+    } finally {
+      setAnalyticsLoading(false);
     }
   };
 
@@ -111,8 +140,9 @@ export default function ParentDashboard() {
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
+      <ParentSidebar />
       
-      <main className="container py-8">
+      <main className="md:ml-64 container py-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-semibold mb-2">Parent Dashboard</h1>
@@ -230,6 +260,41 @@ export default function ParentDashboard() {
                         <span className="inline-block mt-2 status-badge bg-muted text-foreground border border-border">
                           Pending Approval
                         </span>
+                      )}
+
+                      {/* Child Progress Analytics */}
+                      {!isPending && childAnalytics[child.id] && (
+                        <div className="mt-4 grid grid-cols-3 gap-3 pt-4 border-t border-border">
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                              <Calendar className="w-4 h-4" />
+                              <span className="text-xs">Sessions</span>
+                            </div>
+                            <p className="text-lg font-semibold text-foreground">
+                              {childAnalytics[child.id].total_sessions || 0}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                              <BarChart3 className="w-4 h-4" />
+                              <span className="text-xs">Attendance</span>
+                            </div>
+                            <p className="text-lg font-semibold text-foreground">
+                              {childAnalytics[child.id].attendance_rate?.toFixed(0) || 0}%
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                              <TrendingUp className="w-4 h-4" />
+                              <span className="text-xs">Progress</span>
+                            </div>
+                            <p className="text-lg font-semibold text-foreground">
+                              {childAnalytics[child.id].attendance_trend?.length > 0 
+                                ? childAnalytics[child.id].attendance_trend[childAnalytics[child.id].attendance_trend.length - 1].sessions_attended || 0
+                                : 0}
+                            </p>
+                          </div>
+                        </div>
                       )}
                     </div>
                 </div>

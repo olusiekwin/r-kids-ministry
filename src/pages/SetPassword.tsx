@@ -71,26 +71,37 @@ export default function SetPassword() {
         throw new Error(data.error || 'Failed to set password');
       }
 
-      // Password set successfully, now proceed with MFA
+      // Password set successfully, check if profile needs to be updated (skip for admin)
+      const userData = data.data.user;
+      const isAdmin = userData.role === 'admin';
+      const needsProfileUpdate = !isAdmin && !userData.profile_updated && !userData.profileUpdated;
+      
       if (data.data.requiresMFA) {
         // Store token and OTP for MFA verification
         localStorage.setItem('auth_token', data.data.token);
         localStorage.setItem('temp_otp', data.data.otpCode);
         localStorage.setItem('temp_user', JSON.stringify(data.data.user));
         
-        // Redirect to MFA verification
+        // Redirect to MFA verification, then to profile setup if needed
         navigate('/login', { 
           state: { 
-            role: data.data.user.role,
+            role: userData.role,
             fromPasswordSetup: true,
-            otpCode: data.data.otpCode
+            otpCode: data.data.otpCode,
+            needsProfileUpdate
           } 
         });
       } else {
-        // No MFA required, login directly
+        // No MFA required
         localStorage.setItem('auth_token', data.data.token);
-        localStorage.setItem('user', JSON.stringify(data.data.user));
-        navigate(`/${data.data.user.role}`);
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        // Redirect to profile setup if needed (skip for admin), otherwise to dashboard
+        if (needsProfileUpdate) {
+          navigate('/update-profile', { replace: true });
+        } else {
+          navigate(`/${userData.role}`, { replace: true });
+        }
       }
     } catch (error: any) {
       console.error('Set password error:', error);

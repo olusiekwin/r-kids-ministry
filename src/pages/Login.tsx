@@ -9,11 +9,11 @@ export default function Login() {
   const location = useLocation();
   const { login, verifyMFA, pendingMFA, otpCode } = useAuth();
   
-  const role = (location.state as { role?: UserRole })?.role || 'parent';
+  // Role will be determined from the user's account after login
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [mfaCode, setMfaCode] = useState('');
+  const [mfaCode, setMfaCode] = useState(['', '', '', '', '', '']);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [otpTimer, setOtpTimer] = useState<number | null>(null); // Timer in seconds
@@ -23,17 +23,23 @@ export default function Login() {
     setError('');
     setLoading(true);
     setOtpTimer(null); // Reset timer
+    setMfaCode(['', '', '', '', '', '']); // Reset MFA code
 
     const success = await login(email, password);
     setLoading(false);
 
     if (!success) {
       setError('Invalid email or password');
-    } else if (pendingMFA) {
-      // Start 10-minute timer (600 seconds)
-      setOtpTimer(600);
     }
+    // Timer will start automatically via useEffect when pendingMFA becomes true
   };
+
+  // Start timer when MFA screen appears
+  useEffect(() => {
+    if (pendingMFA && otpTimer === null) {
+      setOtpTimer(600); // 10 minutes = 600 seconds
+    }
+  }, [pendingMFA]);
 
   // Timer countdown effect
   useEffect(() => {
@@ -50,6 +56,68 @@ export default function Login() {
     }
   }, [otpTimer]);
 
+  // Handle MFA code input with separate boxes
+  const handleMfaCodeChange = (index: number, value: string) => {
+    // Only allow digits
+    const digit = value.replace(/\D/g, '').slice(0, 1);
+    
+    const newCode = [...mfaCode];
+    newCode[index] = digit;
+    setMfaCode(newCode);
+    setError('');
+
+    // Auto-advance to next box
+    if (digit && index < 5) {
+      const nextInput = document.getElementById(`mfa-digit-${index + 1}`) as HTMLInputElement;
+      if (nextInput) {
+        nextInput.focus();
+      }
+    }
+
+    // Auto-submit when all 6 digits are entered
+    if (digit && index === 5) {
+      const fullCode = newCode.join('');
+      if (fullCode.length === 6) {
+        // Small delay to let the user see the last digit
+        setTimeout(() => {
+          handleMFA(new Event('submit') as any);
+        }, 100);
+      }
+    }
+  };
+
+  // Handle backspace to go to previous box
+  const handleMfaKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !mfaCode[index] && index > 0) {
+      const prevInput = document.getElementById(`mfa-digit-${index - 1}`) as HTMLInputElement;
+      if (prevInput) {
+        prevInput.focus();
+      }
+    }
+  };
+
+  // Handle paste
+  const handleMfaPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    const newCode = ['', '', '', '', '', ''];
+    pastedData.split('').forEach((digit, index) => {
+      if (index < 6) {
+        newCode[index] = digit;
+      }
+    });
+    setMfaCode(newCode);
+    setError('');
+    
+    // Focus on next empty box or last box
+    const nextEmptyIndex = newCode.findIndex((digit) => !digit);
+    const focusIndex = nextEmptyIndex === -1 ? 5 : nextEmptyIndex;
+    const nextInput = document.getElementById(`mfa-digit-${focusIndex}`) as HTMLInputElement;
+    if (nextInput) {
+      nextInput.focus();
+    }
+  };
+
   // Format timer as MM:SS
   const formatTimer = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -57,18 +125,49 @@ export default function Login() {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleMFA = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleMFA = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setError('');
-    setLoading(true);
+    
+    const code = mfaCode.join('');
+    if (code.length !== 6) {
+      setError('Please enter all 6 digits');
+      return;
+    }
 
-    const success = await verifyMFA(mfaCode);
+    setLoading(true);
+    const success = await verifyMFA(code);
     setLoading(false);
 
     if (success) {
-      navigate(`/${role}`);
+      // Check if user needs to update profile (skip for admin)
+      const userStr = localStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const isAdmin = user?.role === 'admin';
+      const needsProfileUpdate = !isAdmin && user && !user.profile_updated && !user.profileUpdated;
+      
+      // Use the actual user role from the account - this is required!
+      if (!user || !user.role) {
+        console.error('User or user role not found after login');
+        setError('Failed to determine user role. Please try again.');
+        return;
+      }
+      const userRole = user.role;
+      
+      if (needsProfileUpdate) {
+        navigate('/update-profile', { replace: true });
+      } else {
+        navigate(`/${userRole}`, { replace: true });
+      }
     } else {
       setError('Invalid verification code');
+      // Clear the code on error
+      setMfaCode(['', '', '', '', '', '']);
+      // Focus first input
+      const firstInput = document.getElementById('mfa-digit-0') as HTMLInputElement;
+      if (firstInput) {
+        firstInput.focus();
+      }
     }
   };
 
@@ -114,16 +213,24 @@ export default function Login() {
 
                 <form onSubmit={handleMFA} className="space-y-6">
                   <div className="space-y-2">
-                    <label className="block text-sm font-medium text-white">Verification Code</label>
+                    <label className="block text-sm font-medium text-white text-center">Verification Code</label>
+                    <div className="flex justify-center gap-2" onPaste={handleMfaPaste}>
+                      {[0, 1, 2, 3, 4, 5].map((index) => (
               <input
+                          key={index}
+                          id={`mfa-digit-${index}`}
                 type="text"
-                value={mfaCode}
-                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="000000"
-                      className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border-2 border-white/30 rounded-lg text-center text-2xl tracking-widest font-mono text-white placeholder-white/50 focus:outline-none focus:border-white/50 focus:bg-white/30 transition-all"
-                maxLength={6}
-                autoFocus
+                          inputMode="numeric"
+                          value={mfaCode[index]}
+                          onChange={(e) => handleMfaCodeChange(index, e.target.value)}
+                          onKeyDown={(e) => handleMfaKeyDown(index, e)}
+                          className="w-12 h-14 bg-white/20 backdrop-blur-sm border-2 border-white/30 rounded-lg text-center text-2xl tracking-widest font-mono text-white placeholder-white/50 focus:outline-none focus:border-white/50 focus:bg-white/30 transition-all"
+                          maxLength={1}
+                          autoFocus={index === 0}
+                          disabled={loading}
               />
+                      ))}
+                    </div>
             </div>
 
             {error && (
@@ -134,7 +241,7 @@ export default function Login() {
 
             <button
               type="submit"
-              disabled={loading || mfaCode.length !== 6}
+              disabled={loading || mfaCode.join('').length !== 6}
                     className="w-full bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-white/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
               {loading ? 'Verifying...' : 'Verify'}
@@ -206,7 +313,10 @@ export default function Login() {
               <p className="text-sm font-semibold text-white mb-1 drop-shadow-md">Ruach South Assembly</p>
               <p className="text-xs text-white/90 italic mb-4 drop-shadow-sm">Growth Happens Here</p>
               <p className="text-sm text-white/80">
-                Signing in as <span className="font-semibold text-white">{role.charAt(0).toUpperCase() + role.slice(1)}</span>
+                Sign in with your account credentials
+              </p>
+              <p className="text-xs text-white/60 mt-2">
+                Your role will be automatically determined from your account
               </p>
             </div>
 

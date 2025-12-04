@@ -7,25 +7,19 @@ interface SidebarItem {
   badge?: number;
 }
 
-export function AdminSidebar() {
+export function TeenSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
 
   const menuItems: SidebarItem[] = [
-    { label: 'Dashboard', path: '/admin' },
-    { label: 'Manage Users', path: '/admin/manage-users' },
-    { label: 'All Children', path: '/admin/children' },
-    { label: 'Pending Approvals', path: '/admin/pending-approvals', badge: 0 },
-    { label: 'Check-Ins & Check-Outs', path: '/admin/check-ins' },
-    { label: 'Manage Guardians', path: '/admin/guardians' },
-    { label: 'Groups', path: '/admin/groups' },
-    { label: 'Reports', path: '/admin/reports' },
-    { label: 'Audit Log', path: '/admin/audit-log' },
+    { label: 'Dashboard', path: '/teen' },
+    { label: 'Attendance', path: '/teen/attendance' },
+    { label: 'Profile', path: '/teen/profile' },
   ];
 
   const isActive = (path: string) => {
-    if (path === '/admin') {
-      return location.pathname === '/admin';
+    if (path === '/teen') {
+      return location.pathname === '/teen';
     }
     return location.pathname.startsWith(path);
   };

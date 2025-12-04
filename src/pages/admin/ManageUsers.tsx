@@ -18,7 +18,8 @@ export default function ManageUsers() {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     role: 'teacher' as UserType,
     sendEmail: true,
@@ -55,16 +56,26 @@ export default function ManageUsers() {
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
+      toast.error('Please provide both first and last name');
+      return;
+    }
+    
     try {
+      const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim();
+      
       if (formData.role === 'parent') {
         await parentsApi.create({
-          name: formData.name,
+          name: fullName,
           email: formData.email,
         });
       } else {
         // Create user with invitation
         await usersApi.create({
-          name: formData.name,
+          name: fullName,
+          firstName: formData.firstName.trim(),
+          lastName: formData.lastName.trim(),
           email: formData.email,
           role: formData.role,
           sendEmail: formData.sendEmail,
@@ -72,7 +83,7 @@ export default function ManageUsers() {
         });
       }
       setShowAddModal(false);
-      setFormData({ name: '', email: '', role: activeTab, sendEmail: true, customEmailMessage: '' });
+      setFormData({ firstName: '', lastName: '', email: '', role: activeTab, sendEmail: true, customEmailMessage: '' });
       await loadUsers();
       const emailStatus = formData.sendEmail ? 'Invitation sent' : 'User created (no email sent)';
       toast.success(`${formData.role.charAt(0).toUpperCase() + formData.role.slice(1)} created successfully!`, {
@@ -118,6 +129,30 @@ export default function ManageUsers() {
       });
     } catch (error: any) {
       toast.error('Failed to activate user', {
+        description: error.message || 'An error occurred',
+      });
+    }
+  };
+
+  const handleDelete = async (userId: string) => {
+    const user = currentUsers.find((u: any) => u.id === userId);
+    if (!user) return;
+    
+    // Confirmation dialog
+    const confirmed = window.confirm(
+      `⚠️ WARNING: Are you sure you want to DELETE ${user.name}?\n\n` +
+      `This action cannot be undone. All data associated with this user will be permanently removed.`
+    );
+    if (!confirmed) return;
+    
+    try {
+      await usersApi.delete(userId);
+      await loadUsers();
+      toast.success('User deleted successfully', {
+        description: `${user.name} has been permanently deleted`,
+      });
+    } catch (error: any) {
+      toast.error('Failed to delete user', {
         description: error.message || 'An error occurred',
       });
     }
@@ -187,7 +222,7 @@ export default function ManageUsers() {
         <div className="mb-4 flex justify-end">
           <button
             onClick={() => {
-              setFormData({ name: '', email: '', role: activeTab });
+              setFormData({ firstName: '', lastName: '', email: '', role: activeTab, sendEmail: true, customEmailMessage: '' });
               setShowAddModal(true);
             }}
             className="px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
@@ -301,11 +336,18 @@ export default function ManageUsers() {
                           ) : (
                             <button
                               onClick={() => handleSuspend(user.id)}
-                              className="px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors border border-red-200"
+                              className="px-3 py-1.5 text-xs font-medium text-yellow-600 hover:bg-yellow-50 rounded-md transition-colors border border-yellow-200"
                             >
                               Suspend
                             </button>
                           )}
+                          <button
+                            onClick={() => handleDelete(user.id)}
+                            className="px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-md transition-colors border border-red-200"
+                            title="Permanently delete this user"
+                          >
+                            Delete
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -324,15 +366,29 @@ export default function ManageUsers() {
                 Add {activeTab === 'teacher' ? 'Teacher' : activeTab === 'teen' ? 'Teen' : 'Parent'}
               </h2>
               <form onSubmit={handleAddUser} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Name</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">First Name *</label>
+                    <input
+                      type="text"
+                      value={formData.firstName}
+                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      required
+                      className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                      placeholder="First name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Last Name *</label>
+                    <input
+                      type="text"
+                      value={formData.lastName}
+                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      required
+                      className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                      placeholder="Last name"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-2">Email (Username)</label>

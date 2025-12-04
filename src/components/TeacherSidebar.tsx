@@ -7,25 +7,22 @@ interface SidebarItem {
   badge?: number;
 }
 
-export function AdminSidebar() {
+export function TeacherSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
 
   const menuItems: SidebarItem[] = [
-    { label: 'Dashboard', path: '/admin' },
-    { label: 'Manage Users', path: '/admin/manage-users' },
-    { label: 'All Children', path: '/admin/children' },
-    { label: 'Pending Approvals', path: '/admin/pending-approvals', badge: 0 },
-    { label: 'Check-Ins & Check-Outs', path: '/admin/check-ins' },
-    { label: 'Manage Guardians', path: '/admin/guardians' },
-    { label: 'Groups', path: '/admin/groups' },
-    { label: 'Reports', path: '/admin/reports' },
-    { label: 'Audit Log', path: '/admin/audit-log' },
+    { label: 'Dashboard', path: '/teacher' },
+    { label: 'Check-In', path: '/teacher/checkin' },
+    { label: 'Manual Check-In', path: '/teacher/manual-checkin' },
+    { label: 'Add Child to Group', path: '/teacher/add-child' },
+    { label: 'Send Pickup Notification', path: '/teacher/send-pickup' },
+    { label: 'Guardian Authorization', path: '/teacher/guardian-authorize' },
   ];
 
   const isActive = (path: string) => {
-    if (path === '/admin') {
-      return location.pathname === '/admin';
+    if (path === '/teacher') {
+      return location.pathname === '/teacher';
     }
     return location.pathname.startsWith(path);
   };

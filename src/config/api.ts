@@ -106,11 +106,20 @@ export const API_ENDPOINTS = {
     EXPORT: '/audit/export',
   },
 
+  // Analytics
+  ANALYTICS: {
+    GROUP: (groupName: string) => `/analytics/group/${groupName}`,
+    TEACHER: '/analytics/teacher',
+    ADMIN: '/analytics/admin',
+    CHILD: (childId: string) => `/analytics/child/${childId}`,
+  },
+
   // Users
   USERS: {
     LIST: '/users',
     GET: (id: string) => `/users/${id}`,
     UPDATE: (id: string) => `/users/${id}`,
+    DELETE: (id: string) => `/users/${id}`,
     BY_ROLE: (role: string) => `/users?role=${role}`,
     SUSPEND: (id: string) => `/users/${id}/suspend`,
     ACTIVATE: (id: string) => `/users/${id}/activate`,

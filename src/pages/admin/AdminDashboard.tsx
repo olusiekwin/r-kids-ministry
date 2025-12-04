@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
 import { AdminSidebar } from '@/components/AdminSidebar';
-import { parentsApi, usersApi } from '@/services/api';
+import { parentsApi, usersApi, analyticsApi } from '@/services/api';
 import { Parent, User } from '@/types';
+import { Users, Calendar, BarChart3, TrendingUp } from 'lucide-react';
 
 type SortField = 'id' | 'name' | 'childrenCount' | 'status';
 type SortOrder = 'asc' | 'desc';
@@ -19,9 +20,12 @@ export default function AdminDashboard() {
     pendingApprovals: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [analytics, setAnalytics] = useState<any[]>([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   useEffect(() => {
     loadStats();
+    loadAnalytics();
   }, []);
 
   const loadStats = async () => {
@@ -44,6 +48,19 @@ export default function AdminDashboard() {
       console.error('Failed to load stats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const data = await analyticsApi.getAdminAnalytics();
+      setAnalytics(data);
+    } catch (error: any) {
+      console.error('Failed to load analytics:', error);
+      setAnalytics([]);
+    } finally {
+      setAnalyticsLoading(false);
     }
   };
 
@@ -171,15 +188,48 @@ export default function AdminDashboard() {
                   <p className="font-medium mb-1">View Reports</p>
                   <p className="text-sm text-muted-foreground">Attendance and analytics</p>
               </button>
-              <button
-                  onClick={() => navigate('/admin/user-activity')}
-                  className="p-4 border border-border rounded-lg hover:bg-muted transition-colors text-left"
-              >
-                  <p className="font-medium mb-1">User Activity Tracking</p>
-                  <p className="text-sm text-muted-foreground">Monitor user activities and actions</p>
-              </button>
             </div>
           </div>
+
+            {/* All Groups & Teachers Analytics */}
+            {!analyticsLoading && analytics.length > 0 && (
+              <div className="border border-border rounded-lg p-6 bg-background mt-8">
+                <h2 className="text-lg font-semibold mb-4">Groups & Teachers Analytics</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {analytics.map((group) => (
+                    <div key={group.group_id} className="border border-border rounded-lg p-4 bg-muted/30">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-semibold text-foreground">{group.group_name}</h3>
+                        <span className="text-xs text-muted-foreground">{group.teacher_name || 'Unassigned'}</span>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Users className="w-4 h-4" />
+                            <span>Students</span>
+                          </div>
+                          <span className="font-semibold text-foreground">{group.students_count}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Calendar className="w-4 h-4" />
+                            <span>Sessions</span>
+                          </div>
+                          <span className="font-semibold text-foreground">{group.total_sessions}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <BarChart3 className="w-4 h-4" />
+                            <span>Avg Attendance</span>
+                          </div>
+                          <span className="font-semibold text-foreground">{group.avg_attendance_rate.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
       </main>

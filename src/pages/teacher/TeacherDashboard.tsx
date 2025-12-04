@@ -2,40 +2,68 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
+import { TeacherSidebar } from '@/components/TeacherSidebar';
 import { PhotoPlaceholder } from '@/components/PhotoPlaceholder';
-import { childrenApi, groupsApi } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { childrenApi, groupsApi, analyticsApi } from '@/services/api';
 import { Child, GroupName } from '@/types';
+import { TrendingUp, Users, Calendar, BarChart3 } from 'lucide-react';
 
 export default function TeacherDashboard() {
   const navigate = useNavigate();
-  const [selectedGroup, setSelectedGroup] = useState<GroupName>('Little Angels');
-  const [groups, setGroups] = useState<GroupName[]>([]);
+  const { user } = useAuth();
+  const [selectedGroup, setSelectedGroup] = useState<GroupName | null>(null);
+  const [assignedGroups, setAssignedGroups] = useState<GroupName[]>([]);
   const [groupChildren, setGroupChildren] = useState<Child[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasAssignedGroup, setHasAssignedGroup] = useState(false);
+  const [analytics, setAnalytics] = useState<any[]>([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   useEffect(() => {
     loadGroups();
   }, []);
 
   useEffect(() => {
-    if (selectedGroup) {
+    if (selectedGroup && hasAssignedGroup) {
       loadGroupChildren();
     }
-  }, [selectedGroup]);
+  }, [selectedGroup, hasAssignedGroup]);
+
+  useEffect(() => {
+    if (hasAssignedGroup) {
+      loadAnalytics();
+    }
+  }, [hasAssignedGroup]);
 
   const loadGroups = async () => {
     try {
-      const data = await groupsApi.list();
-      setGroups(data as GroupName[]);
-      if (data.length > 0) {
-        setSelectedGroup(data[0] as GroupName);
+      setLoading(true);
+      // Try to fetch groups assigned to this teacher
+      const allGroups = await groupsApi.list();
+      
+      // Check if teacher has assigned groups (for now, check if any groups exist)
+      // In production, you'd filter by teacher_id
+      const teacherGroups = allGroups as GroupName[];
+      
+      if (teacherGroups && teacherGroups.length > 0) {
+        setAssignedGroups(teacherGroups);
+        setHasAssignedGroup(true);
+        setSelectedGroup(teacherGroups[0] as GroupName);
+      } else {
+        // No groups assigned - show waiting message
+        setHasAssignedGroup(false);
+        setAssignedGroups([]);
+        setSelectedGroup(null);
       }
     } catch (error: any) {
       console.error('Failed to load groups:', error);
-      // Fallback to default groups if backend is not available
-      const defaultGroups: GroupName[] = ['Little Angels', 'Saints', 'Disciples', 'Trendsetters'];
-      setGroups(defaultGroups);
-      setSelectedGroup(defaultGroups[0]);
+      // If error, assume no groups assigned yet
+      setHasAssignedGroup(false);
+      setAssignedGroups([]);
+      setSelectedGroup(null);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -53,30 +81,126 @@ export default function TeacherDashboard() {
     }
   };
 
+  const loadAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const data = await analyticsApi.getTeacherAnalytics();
+      setAnalytics(data);
+    } catch (error: any) {
+      console.error('Failed to load analytics:', error);
+      setAnalytics([]);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  // Show waiting message if no groups assigned
+  if (!loading && !hasAssignedGroup) {
+    return (
+      <div className="min-h-screen bg-background pb-16 md:pb-0">
+        <Header />
+        
+        <main className="container py-8">
+          <div className="max-w-2xl mx-auto">
+            <div className="text-center mb-8">
+              <h1 className="text-2xl font-semibold mb-2">Teacher Dashboard</h1>
+              <p className="text-muted-foreground">Welcome, {user?.name || 'Teacher'}!</p>
+            </div>
+            
+            <div className="border-2 border-border rounded-lg p-12 bg-muted/30 text-center">
+              <div className="mb-6">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-foreground/10 mb-4">
+                  <svg className="w-8 h-8 text-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-semibold mb-2">Waiting for Group Assignment</h2>
+                <p className="text-muted-foreground mb-4">
+                  Your profile has been completed successfully! Please wait for an administrator to assign you to a group.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Once assigned, you'll be able to check in children and manage your group.
+                </p>
+              </div>
+              
+              <div className="pt-6 border-t border-border">
+                <p className="text-sm text-muted-foreground">
+                  If you have questions, please contact your administrator.
+                </p>
+              </div>
+            </div>
+          </div>
+        </main>
+        
+        <MobileNav />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
+      <TeacherSidebar />
       
-      <main className="container py-8">
+      <main className="md:ml-64 container py-8">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold mb-2">Teacher Dashboard</h1>
           <p className="text-muted-foreground">Check in children and manage your group</p>
         </div>
-        
-        <div className="mb-6">
-          <label className="block text-sm font-medium mb-2 text-foreground">Select Group:</label>
-          <div className="flex flex-wrap gap-2">
-            {groups.map((group) => (
-              <button
-                key={group}
-                onClick={() => setSelectedGroup(group)}
-                className={selectedGroup === group ? 'btn-primary' : 'btn-secondary'}
-              >
-                {group}
-              </button>
-            ))}
+
+        {/* Analytics Section */}
+        {!analyticsLoading && analytics.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold mb-4">Group Analytics</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {analytics.map((group) => (
+                <div key={group.group_id} className="border border-border rounded-lg p-4 bg-background">
+                  <h3 className="font-semibold text-sm mb-3 text-foreground">{group.group_name}</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Users className="w-4 h-4" />
+                        <span className="text-xs">Students</span>
+                      </div>
+                      <span className="font-semibold text-foreground">{group.students_count}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Calendar className="w-4 h-4" />
+                        <span className="text-xs">Sessions</span>
+                      </div>
+                      <span className="font-semibold text-foreground">{group.total_sessions}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <BarChart3 className="w-4 h-4" />
+                        <span className="text-xs">Avg Attendance</span>
+                      </div>
+                      <span className="font-semibold text-foreground">{group.avg_attendance_rate.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
+        
+        {assignedGroups.length > 0 && (
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-2 text-foreground">Select Group:</label>
+            <div className="flex flex-wrap gap-2">
+              {assignedGroups.map((group) => (
+                <button
+                  key={group}
+                  onClick={() => setSelectedGroup(group)}
+                  className={selectedGroup === group ? 'btn-primary' : 'btn-secondary'}
+                >
+                  {group}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-2 mb-6">
           <button 
@@ -101,7 +225,11 @@ export default function TeacherDashboard() {
 
         {loading ? (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">Loading children...</p>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        ) : !selectedGroup ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No group selected</p>
           </div>
         ) : groupChildren.length === 0 ? (
           <div className="text-center py-12">

@@ -1,103 +1,87 @@
 """
-Supabase Client for REST API operations
-Uses SUPABASE_URL and SUPABASE_ANON_KEY from environment
+Supabase client helper for the R-KIDS backend.
+
+Reads SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY / SUPABASE_ANON_KEY
+from environment (see database/README.md for setup).
 """
+
 import os
 from typing import Optional
-from supabase import create_client, Client
 
-# Initialize Supabase client
-supabase: Optional[Client] = None
+from supabase import Client, create_client
+
+SUPABASE_URL_ENV = "SUPABASE_URL"
+SERVICE_ROLE_ENV = "SUPABASE_SERVICE_ROLE_KEY"
+ANON_KEY_ENV = "SUPABASE_ANON_KEY"
+
+_client: Optional[Client] = None
+
 
 def init_supabase() -> Optional[Client]:
-    """Initialize Supabase client"""
-    global supabase
-    
-    supabase_url = os.environ.get('SUPABASE_URL')
-    # Prefer service_role key (bypasses RLS) for backend operations
-    # Fall back to anon key if service_role not available
-    supabase_key = os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or os.environ.get('SUPABASE_ANON_KEY')
-    
+    """Initialise Supabase client once and reuse."""
+    global _client
+
+    supabase_url = os.environ.get(SUPABASE_URL_ENV)
+    supabase_key = os.environ.get(SERVICE_ROLE_ENV) or os.environ.get(ANON_KEY_ENV)
+
     if not supabase_url or not supabase_key:
-        if not os.environ.get('SUPABASE_SERVICE_ROLE_KEY') and not os.environ.get('SUPABASE_ANON_KEY'):
-            print("⚠️ SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY) not set in .env")
-            print("   💡 Tip: Use SUPABASE_SERVICE_ROLE_KEY for backend (bypasses RLS)")
+        print(
+            "⚠️  Supabase not configured. "
+            f"Set {SUPABASE_URL_ENV} and {SERVICE_ROLE_ENV} (or {ANON_KEY_ENV})."
+        )
         return None
-    
-    # Check if using service_role key
-    using_service_role = bool(os.environ.get('SUPABASE_SERVICE_ROLE_KEY'))
-    if using_service_role:
-        print("✅ Using Supabase service_role key (bypasses RLS)")
-    else:
-        print("⚠️ Using anon key - RLS policies must be configured")
-        print("   💡 Tip: Use SUPABASE_SERVICE_ROLE_KEY for backend operations")
-    
+
     try:
-        # Initialize Supabase client - handle proxy parameter error
-        # This is a known issue with some versions of supabase-py and httpx
-        import warnings
-        warnings.filterwarnings('ignore', category=DeprecationWarning)
-        
-        # Try direct initialization - supabase 2.3.4 should work with this
-        supabase = create_client(supabase_url, supabase_key)
-        
-        # Test connection (don't fail if table doesn't exist yet)
-        try:
-            result = supabase.table('churches').select('count', count='exact').limit(0).execute()
-        except Exception as table_error:
-            # Table might not exist yet, but client is initialized
-            error_str = str(table_error).lower()
-            if 'relation' not in error_str and 'does not exist' not in error_str and 'permission' not in error_str:
-                # Only raise if it's not a table/permission error
-                raise table_error
-        
-        print("✅ Supabase client initialized successfully")
-        return supabase
-    except Exception as e:
-        error_msg = str(e)
-        print(f"⚠️ Failed to initialize Supabase client: {error_msg}")
-        print("   Make sure SUPABASE_URL and SUPABASE_ANON_KEY are correct in .env")
-        
-        # Provide helpful error messages
-        if 'proxy' in error_msg.lower():
-            print("   💡 Tip: Version compatibility issue. Try: pip install httpx==0.25.2")
-        elif 'connection' in error_msg.lower() or 'network' in error_msg.lower():
-            print("   💡 Tip: Check your internet connection and Supabase URL")
-        elif 'unauthorized' in error_msg.lower() or 'invalid' in error_msg.lower():
-            print("   💡 Tip: Verify your SUPABASE_ANON_KEY is correct")
-        elif 'headers' in error_msg.lower():
-            print("   💡 Tip: This might be a dependency version issue")
-            print("   Try: pip install httpx==0.25.2 httpcore==1.0.9")
-        
-        return None
+        _client = create_client(supabase_url, supabase_key)
+        print("✅ Supabase client initialised")
+    except Exception as exc:  # pragma: no cover - defensive logging
+        print(f"❌ Failed to initialise Supabase client: {exc}")
+        _client = None
+
+    return _client
+
 
 def get_supabase() -> Optional[Client]:
-    """Get Supabase client instance"""
-    global supabase
-    if supabase is None:
-        supabase = init_supabase()
-    return supabase
+    """Get a Supabase client instance (initialising lazily)."""
+    global _client
+    if _client is None:
+        return init_supabase()
+    return _client
 
-def test_supabase_connection() -> bool:
-    """Test Supabase connection"""
+
+def get_default_church_id() -> Optional[str]:
+    """
+    Get or create the default church for this deployment.
+
+    Mirrors the design in USER_CASE_FLOW and database schema:
+    - churches table exists
+    - we either reuse the first church or create
+      'Ruach South Assembly' with default settings.
+    """
     client = get_supabase()
-    if not client:
-        return False
+    if client is None:
+        return None
+
     try:
-        # Try a simple query (table might not exist yet, that's okay)
-        # We just want to verify the API is accessible
-        try:
-            result = client.table('churches').select('count', count='exact').limit(0).execute()
-        except:
-            # If table doesn't exist, try a different approach - just check if API responds
-            # The fact that we got here means the client is initialized
-            pass
-        return True
-    except Exception as e:
-        # If we get a connection error, it's a real problem
-        if 'connection' in str(e).lower() or 'network' in str(e).lower():
-            print(f"Supabase connection test failed: {e}")
-            return False
-        # Otherwise, table might not exist yet, but API is working
-        return True
+        # Try to fetch an existing church
+        res = client.table("churches").select("church_id").limit(1).execute()
+        if res.data:
+            return res.data[0]["church_id"]
+
+        # Create default church
+        payload = {
+            "name": "Ruach South Assembly",
+            "location": "Growth Happens Here",
+            "settings": {},
+        }
+        created = client.table("churches").insert(payload).execute()
+        if created.data:
+            church_id = created.data[0]["church_id"]
+            print(f"✅ Created default church: {church_id}")
+            return church_id
+    except Exception as exc:  # pragma: no cover
+        print(f"⚠️ Error getting/creating default church: {exc}")
+
+    return None
+
 

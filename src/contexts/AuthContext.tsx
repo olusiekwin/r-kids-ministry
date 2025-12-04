@@ -9,6 +9,7 @@ interface AuthContextType {
   verifyMFA: (code: string) => Promise<boolean>;
   logout: () => Promise<void>;
   setRole: (role: UserRole) => void;
+  updateUser: (userData: Partial<User>) => void;
   pendingMFA: boolean;
   otpCode: string | null;
   showIdleWarning: boolean;
@@ -78,6 +79,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTempToken(null);
       setOtpCode(null); // Clear OTP code after successful verification
       lastActivityRef.current = Date.now(); // Reset activity time on login
+      
+      // Check if profile needs to be updated (skip for admin)
+      const isAdmin = response.user.role === 'admin';
+      const needsProfileUpdate = !isAdmin && !response.user.profile_updated && !response.user.profileUpdated;
+      if (needsProfileUpdate) {
+        // Profile update will be handled in Login component
+      }
+      
       return true;
     } catch (error: any) {
       console.error('MFA verification error:', error);
@@ -203,6 +212,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateUser = useCallback((userData: Partial<User>) => {
+    setUser((prevUser) => {
+      if (!prevUser) return prevUser;
+      const updatedUser = { ...prevUser, ...userData };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      return updatedUser;
+    });
+  }, []);
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -211,6 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       verifyMFA,
       logout,
       setRole,
+      updateUser,
       pendingMFA,
       otpCode,
       showIdleWarning

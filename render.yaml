@@ -5,12 +5,10 @@ services:
     region: oregon
     plan: free
     buildCommand: cd backend && pip install -r requirements.txt
-    startCommand: cd backend && gunicorn --bind 0.0.0.0:$PORT app:app --workers 2 --timeout 120 --worker-class gevent
+    startCommand: cd backend && gunicorn --bind 0.0.0.0:$PORT app:app --workers 2 --timeout 120
     envVars:
       - key: FLASK_ENV
         value: production
-      - key: PYTHON_VERSION
-        value: 3.11.0
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY

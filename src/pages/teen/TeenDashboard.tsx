@@ -1,26 +1,60 @@
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
+import { TeenSidebar } from '@/components/TeenSidebar';
 import { useAuth } from '@/contexts/AuthContext';
+import { attendanceApi } from '@/services/api';
 
-const mockTeenAttendance = [
-  { date: '2025-01-26', status: 'present', checkInTime: '09:30' },
-  { date: '2025-01-19', status: 'present', checkInTime: '09:25' },
-  { date: '2025-01-12', status: 'absent', checkInTime: '-' },
-  { date: '2025-01-05', status: 'present', checkInTime: '09:35' },
-  { date: '2024-12-29', status: 'present', checkInTime: '09:28' },
-];
+interface AttendanceRecord {
+  date: string;
+  status: 'present' | 'absent';
+  checkInTime?: string;
+}
 
 export default function TeenDashboard() {
   const { user } = useAuth();
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const presentCount = mockTeenAttendance.filter(r => r.status === 'present').length;
-  const totalCount = mockTeenAttendance.length;
+  useEffect(() => {
+    loadAttendance();
+  }, [user]);
+
+  const loadAttendance = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoading(true);
+      // Fetch attendance records for this teen user
+      // Note: Teens are stored as children in the system, so we need to get their child record first
+      // For now, fetch all attendance - in production, filter by user's linked_child_id
+      const records = await attendanceApi.list();
+      
+      // Transform API data to component format
+      const formattedRecords: AttendanceRecord[] = records.map((record: any) => ({
+        date: record.date || record.created_at?.split('T')[0] || '',
+        status: record.present ? 'present' : 'absent',
+        checkInTime: record.check_in_time || record.checkInTime,
+      }));
+      
+      setAttendance(formattedRecords);
+    } catch (error) {
+      console.error('Failed to load attendance:', error);
+      setAttendance([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const presentCount = attendance.filter(r => r.status === 'present').length;
+  const totalCount = attendance.length;
 
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
+      <TeenSidebar />
       
-      <main className="container py-8">
+      <main className="md:ml-64 container py-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-semibold mb-2">Teen Dashboard</h1>
@@ -50,8 +84,17 @@ export default function TeenDashboard() {
 
         <div className="mb-6">
             <h3 className="text-lg font-semibold mb-4 text-center">Recent Attendance</h3>
+            {loading ? (
+              <div className="border border-border rounded-md p-12 text-center bg-background shadow-sm">
+                <p className="text-muted-foreground">Loading attendance...</p>
+              </div>
+            ) : attendance.length === 0 ? (
+              <div className="border border-border rounded-md p-12 text-center bg-background shadow-sm">
+                <p className="text-muted-foreground">No attendance records yet</p>
+              </div>
+            ) : (
             <div className="border border-border rounded-md divide-y divide-border bg-background shadow-sm">
-            {mockTeenAttendance.map((record, index) => (
+            {attendance.map((record, index) => (
                 <div key={index} className="flex items-center justify-between p-6 hover:bg-muted/30 transition-colors">
                 <div>
                     <p className="font-semibold">{record.date}</p>
@@ -71,6 +114,7 @@ export default function TeenDashboard() {
               </div>
             ))}
             </div>
+            )}
           </div>
         </div>
       </main>

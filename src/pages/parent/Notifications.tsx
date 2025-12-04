@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
 import { QRCodeGenerator } from '@/components/QRCodeGenerator';
 import { QRCodeScanner } from '@/components/QRCodeScanner';
 import { Bell, CheckCircle2, Clock, X } from 'lucide-react';
+import { notificationsApi } from '@/services/api';
 
 interface Notification {
   id: string;
@@ -20,55 +21,31 @@ interface Notification {
   pickupOTP?: string;
 }
 
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'pickup',
-    title: 'Ready for Pickup',
-    message: 'Maria is ready to be picked up from Little Angels',
-    childId: 'RS073/01',
-    childName: 'Maria',
-    timestamp: new Date().toISOString(),
-    read: false,
-    actionRequired: true,
-    pickupQR: JSON.stringify({
-      type: 'pickup',
-      childId: 'RS073/01',
-      timestamp: new Date().toISOString(),
-    }),
-    pickupOTP: '123456',
-  },
-  {
-    id: '2',
-    type: 'checkin',
-    title: 'Check-In Confirmed',
-    message: 'David has been checked in successfully at 9:15 AM',
-    childId: 'RS073/02',
-    childName: 'David',
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    read: false,
-    actionRequired: false,
-  },
-  {
-    id: '3',
-    type: 'approval',
-    title: 'Child Approved',
-    message: 'Sophia has been approved and is now active',
-    childId: 'RS076/01',
-    childName: 'Sophia',
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    read: true,
-    actionRequired: false,
-  },
-];
-
 export default function Notifications() {
   const navigate = useNavigate();
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [showQR, setShowQR] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [method, setMethod] = useState<'scan' | 'receive' | null>(null);
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
+  const loadNotifications = async () => {
+    try {
+      setLoading(true);
+      const data = await notificationsApi.list();
+      setNotifications(data);
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+      setNotifications([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePickupAction = (notification: Notification) => {
     setSelectedNotification(notification);
@@ -107,10 +84,15 @@ export default function Notifications() {
     }
   };
 
-  const markAsRead = (id: string) => {
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, read: true } : n
-    ));
+  const markAsRead = async (id: string) => {
+    try {
+      await notificationsApi.markRead(id);
+      setNotifications(notifications.map(n => 
+        n.id === id ? { ...n, read: true } : n
+      ));
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
   };
 
   const formatTime = (timestamp: string) => {
@@ -291,7 +273,12 @@ export default function Notifications() {
           )}
 
           {/* All Notifications List */}
-          {notifications.length === 0 ? (
+          {loading ? (
+            <div className="border border-border rounded-md p-12 text-center bg-background shadow-sm">
+              <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading notifications...</p>
+            </div>
+          ) : notifications.length === 0 ? (
             <div className="border border-border rounded-md p-12 text-center bg-background shadow-sm">
               <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No notifications</p>

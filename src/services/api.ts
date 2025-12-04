@@ -1,6 +1,9 @@
 import { API_BASE_URL, API_ENDPOINTS } from '@/config/api';
 import { Child, Parent, AttendanceRecord, Guardian, Notification, User } from '@/types';
 
+// Enable noisy API logging only in dev
+const IS_DEV = import.meta.env.DEV;
+
 // API Response Types
 interface ApiResponse<T> {
   data: T;
@@ -13,6 +16,25 @@ interface ApiError {
   status: number;
   errors?: Record<string, string[]>;
 }
+
+// Helper to avoid logging sensitive fields in request bodies
+const sanitizeBodyForLog = (body: unknown) => {
+  try {
+    if (typeof body === 'string') {
+      const parsed = JSON.parse(body);
+      if (parsed && typeof parsed === 'object') {
+        const clone: any = { ...parsed };
+        if ('password' in clone) delete clone.password;
+        if ('invitation_token' in clone) delete clone.invitation_token;
+        if ('invitationToken' in clone) delete clone.invitationToken;
+        return clone;
+      }
+    }
+  } catch {
+    // ignore JSON parse errors for logging
+  }
+  return undefined;
+};
 
 // Helper function to get auth token
 const getAuthToken = (): string | null => {
@@ -54,14 +76,41 @@ const apiRequest = async <T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers,
-      credentials: 'omit', // Explicitly omit credentials to avoid CORS issues
+  const requestInit: RequestInit = {
+    ...options,
+    headers,
+    credentials: 'omit', // Explicitly omit credentials to avoid CORS issues
+  };
+
+  if (IS_DEV) {
+    console.debug('[API request]', {
+      method: requestInit.method || 'GET',
+      url,
+      body: sanitizeBodyForLog(requestInit.body),
     });
+  }
+
+  try {
+    const response = await fetch(url, requestInit);
+
+    if (IS_DEV) {
+      console.debug('[API response]', {
+        url,
+        status: response.status,
+        ok: response.ok,
+      });
+    }
 
     if (!response.ok) {
+      if (IS_DEV) {
+        const errorText = await response.clone().text().catch(() => '');
+        console.error('[API error response]', {
+          url,
+          status: response.status,
+          body: errorText,
+        });
+      }
+
       // Handle 401 specifically - clear invalid token and redirect to login
       if (response.status === 401) {
         localStorage.removeItem('auth_token');
@@ -79,8 +128,22 @@ const apiRequest = async <T>(
     }
 
     const data: ApiResponse<T> = await response.json();
+
+    if (IS_DEV) {
+      console.debug('[API data]', {
+        url,
+        keys: data && typeof data === 'object' ? Object.keys(data) : undefined,
+      });
+    }
+
     return data.data;
   } catch (error: any) {
+    if (IS_DEV) {
+      console.error('[API exception]', {
+        url,
+        message: error?.message,
+      });
+    }
     // Handle network errors (backend not running, CORS, etc.)
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
       const networkError: ApiError = {
@@ -507,6 +570,12 @@ export const usersApi = {
   get: async (id: string): Promise<User> => {
     return apiRequest<User>(API_ENDPOINTS.USERS.GET(id));
   },
+  
+  delete: async (id: string): Promise<void> => {
+    return apiRequest<void>(API_ENDPOINTS.USERS.DELETE(id), {
+      method: 'DELETE',
+    });
+  },
 };
 
 // Audit API
@@ -523,6 +592,114 @@ export const auditApi = {
       : API_ENDPOINTS.AUDIT.LIST;
     
     return apiRequest<any[]>(endpoint);
+  },
+};
+
+// Analytics API
+export const analyticsApi = {
+  getGroupAnalytics: async (groupName: string) => {
+    return apiRequest<{
+      group_name: string;
+      total_sessions: number;
+      students_count: number;
+      attendance_trend: Array<{
+        week: string;
+        present: number;
+        absent: number;
+        rate: number;
+      }>;
+      avg_attendance_rate: number;
+      growth_metrics: {
+        new_students_this_month: number;
+        attendance_improvement: number;
+      };
+    }>(API_ENDPOINTS.ANALYTICS.GROUP(groupName));
+  },
+
+  getTeacherAnalytics: async () => {
+    return apiRequest<Array<{
+      group_name: string;
+      group_id: string;
+      students_count: number;
+      total_sessions: number;
+      avg_attendance_rate: number;
+    }>>(API_ENDPOINTS.ANALYTICS.TEACHER);
+  },
+
+  getAdminAnalytics: async () => {
+    return apiRequest<Array<{
+      group_name: string;
+      group_id: string;
+      teacher_id: string | null;
+      teacher_name: string;
+      students_count: number;
+      total_sessions: number;
+      avg_attendance_rate: number;
+    }>>(API_ENDPOINTS.ANALYTICS.ADMIN);
+  },
+
+  getChildAnalytics: async (childId: string) => {
+    return apiRequest<{
+      child_id: string;
+      child_name: string;
+      group: string;
+      total_sessions: number;
+      attendance_rate: number;
+      attendance_trend: Array<{
+        week: string;
+        sessions_attended: number;
+      }>;
+      recent_sessions: any[];
+    }>(API_ENDPOINTS.ANALYTICS.CHILD(childId));
+  },
+};
+
+// Sessions/Events API
+export const sessionsApi = {
+  list: async (params?: { group_id?: string; date?: string; year?: number; month?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.group_id) query.append('group_id', params.group_id);
+    if (params?.date) query.append('date', params.date);
+    if (params?.year) query.append('year', params.year.toString());
+    if (params?.month) query.append('month', params.month.toString());
+    
+    const endpoint = query.toString()
+      ? `${API_ENDPOINTS.SESSIONS.LIST}?${query.toString()}`
+      : API_ENDPOINTS.SESSIONS.LIST;
+    
+    return apiRequest<any[]>(endpoint);
+  },
+
+  create: async (data: {
+    title: string;
+    description?: string;
+    session_date: string;
+    start_time?: string;
+    end_time?: string;
+    group_id?: string;
+    teacher_id?: string;
+    session_type?: 'Regular' | 'Special Event' | 'Holiday' | 'Outing';
+    is_recurring?: boolean;
+    recurrence_pattern?: string;
+    location?: string;
+  }) => {
+    return apiRequest<any>(API_ENDPOINTS.SESSIONS.CREATE, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (id: string, data: Partial<any>) => {
+    return apiRequest<any>(API_ENDPOINTS.SESSIONS.UPDATE(id), {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (id: string) => {
+    return apiRequest<void>(API_ENDPOINTS.SESSIONS.DELETE(id), {
+      method: 'DELETE',
+    });
   },
 };
 

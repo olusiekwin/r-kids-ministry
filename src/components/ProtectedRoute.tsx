@@ -17,7 +17,8 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   }
 
   // Check if profile needs updating (skip for admin and if already on update-profile page)
-  if (!user.profileUpdated && user.role !== 'admin' && location.pathname !== '/update-profile') {
+  const needsProfileUpdate = !user.profileUpdated && !user.profile_updated;
+  if (needsProfileUpdate && user.role !== 'admin' && location.pathname !== '/update-profile') {
     return <Navigate to="/update-profile" replace />;
   }
 

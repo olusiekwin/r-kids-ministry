@@ -1,14 +1,9 @@
 import { useNavigate } from 'react-router-dom';
-import { UserRole } from '@/types';
 import { QRCodeDisplay } from '@/components/QRCodeDisplay';
 import { Logo } from '@/components/Logo';
 
 export default function Onboarding() {
   const navigate = useNavigate();
-
-  const handleRoleSelect = (role: UserRole) => {
-    navigate('/login', { state: { role } });
-  };
 
   const features = [
     {
@@ -132,32 +127,17 @@ export default function Onboarding() {
                 Secure Children & Teens Management System
               </p>
               
-              <div className="flex flex-wrap justify-center gap-3 mb-12">
-          <button
-                  onClick={() => handleRoleSelect('parent')}
-                  className="bg-white text-black px-8 py-3 text-base font-medium rounded-md hover:bg-white/90 transition-colors shadow-lg"
-          >
-                  Parent Login
-          </button>
-          <button
-            onClick={() => handleRoleSelect('teacher')}
-                  className="bg-white/10 text-white border-2 border-white px-8 py-3 text-base font-medium rounded-md hover:bg-white/20 transition-colors backdrop-blur-sm"
-          >
-                  Teacher Login
-          </button>
-          <button
-                  onClick={() => handleRoleSelect('admin')}
-                  className="bg-white/10 text-white border-2 border-white px-8 py-3 text-base font-medium rounded-md hover:bg-white/20 transition-colors backdrop-blur-sm"
-          >
-                  Admin Login
-          </button>
-          <button
-            onClick={() => handleRoleSelect('teen')}
-                  className="bg-white/10 text-white border-2 border-white px-8 py-3 text-base font-medium rounded-md hover:bg-white/20 transition-colors backdrop-blur-sm"
-          >
-                  Teen Login
-          </button>
-        </div>
+              <div className="flex justify-center mb-12">
+                <button
+                  onClick={() => navigate('/login')}
+                  className="bg-white text-black px-12 py-4 text-lg font-semibold rounded-md hover:bg-white/90 transition-colors shadow-lg"
+                >
+                  Sign In to Your Account
+                </button>
+              </div>
+              <p className="text-sm text-white/70 text-center">
+                Your role will be automatically determined from your account
+              </p>
             </div>
           </div>
         </section>
@@ -221,28 +201,32 @@ export default function Onboarding() {
         {/* Role-Based Access Section */}
         <section className="py-12 md:py-16 border-b border-white/20 bg-black/20 backdrop-blur-sm">
           <div className="container">
-            <h2 className="text-3xl font-bold text-center mb-12 text-white drop-shadow-lg">Choose Your Role</h2>
+            <h2 className="text-3xl font-bold text-center mb-12 text-white drop-shadow-lg">System Access</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {roleBenefits.map((roleInfo) => (
                 <div
                   key={roleInfo.role}
-                  className="border-2 border-white/30 rounded-md p-6 bg-white/10 backdrop-blur-md hover:bg-white/20 hover:shadow-xl transition-all cursor-pointer"
-                  onClick={() => handleRoleSelect(roleInfo.role)}
+                  className="border-2 border-white/30 rounded-md p-6 bg-white/10 backdrop-blur-md hover:bg-white/20 hover:shadow-xl transition-all"
                 >
                   <h3 className="text-xl font-semibold mb-2 text-white">{roleInfo.title}</h3>
                   <p className="text-sm text-white/80 mb-4">{roleInfo.description}</p>
-                  <ul className="space-y-2 mb-4">
+                  <ul className="space-y-2">
                     {roleInfo.features.map((feature, idx) => (
                       <li key={idx} className="text-xs text-white/70">
                         {feature}
                       </li>
                     ))}
                   </ul>
-                  <button className="bg-white/20 text-white border-2 border-white/50 w-full mt-4 font-medium py-2 rounded-md hover:bg-white/30 transition-colors">
-                    Login as {roleInfo.title}
-                  </button>
                 </div>
               ))}
+            </div>
+            <div className="text-center mt-8">
+              <button
+                onClick={() => navigate('/login')}
+                className="bg-white text-black px-12 py-4 text-lg font-semibold rounded-md hover:bg-white/90 transition-colors shadow-lg"
+              >
+                Sign In to Access Your Portal
+              </button>
             </div>
           </div>
         </section>
@@ -293,32 +277,14 @@ export default function Onboarding() {
             <div className="max-w-2xl mx-auto text-center">
               <h2 className="text-3xl font-bold mb-4 text-white drop-shadow-lg">Ready to Get Started?</h2>
               <p className="text-white/80 mb-8">
-                Select your role above to access the R-KIDS Ministry Management System
+                Sign in with your account credentials to access the R-KIDS Ministry Management System
               </p>
-              <div className="flex flex-wrap justify-center gap-4">
+              <div className="flex justify-center">
                 <button
-                  onClick={() => handleRoleSelect('parent')}
-                  className="bg-white text-black px-8 py-3 text-base font-medium rounded-md hover:bg-white/90 transition-colors shadow-lg"
+                  onClick={() => navigate('/login')}
+                  className="bg-white text-black px-12 py-4 text-lg font-semibold rounded-md hover:bg-white/90 transition-colors shadow-lg"
                 >
-                  Parent Portal
-                </button>
-                <button
-                  onClick={() => handleRoleSelect('teacher')}
-                  className="bg-white/10 text-white border-2 border-white px-8 py-3 text-base font-medium rounded-md hover:bg-white/20 transition-colors backdrop-blur-sm"
-                >
-                  Teacher Portal
-                </button>
-                <button
-                  onClick={() => handleRoleSelect('admin')}
-                  className="bg-white/10 text-white border-2 border-white px-8 py-3 text-base font-medium rounded-md hover:bg-white/20 transition-colors backdrop-blur-sm"
-                >
-                  Admin Portal
-                </button>
-                <button
-                  onClick={() => handleRoleSelect('teen')}
-                  className="bg-white/10 text-white border-2 border-white px-8 py-3 text-base font-medium rounded-md hover:bg-white/20 transition-colors backdrop-blur-sm"
-                >
-                  Teen Portal
+                  Sign In
                 </button>
               </div>
             </div>

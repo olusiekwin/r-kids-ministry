@@ -10,9 +10,59 @@ interface AuditLogEntry {
   timestamp: string;
   user: string;
   action: string;
-  details: string;
+  details: string | object | null | undefined;
   ip?: string;
 }
+
+// Helper function to format details for display
+const formatDetails = (details: string | object | null | undefined): string => {
+  if (!details) return '-';
+  
+  if (typeof details === 'string') {
+    try {
+      // Try to parse if it's a JSON string
+      const parsed = JSON.parse(details);
+      return formatDetailsObject(parsed);
+    } catch {
+      // If not JSON, return as is
+      return details || '-';
+    }
+  }
+  
+  if (typeof details === 'object') {
+    return formatDetailsObject(details);
+  }
+  
+  return String(details);
+};
+
+const formatDetailsObject = (obj: any): string => {
+  if (!obj || typeof obj !== 'object') return '-';
+  
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    return obj.map(item => formatDetailsObject(item)).join(', ');
+  }
+  
+  // Remove internal fields
+  const { _user_id_string, ...cleanObj } = obj;
+  
+  // Format as key-value pairs, but skip if it's an empty object
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(cleanObj)) {
+    if (value !== null && value !== undefined && value !== '') {
+      // Don't render nested objects directly - convert to string
+      if (typeof value === 'object') {
+        parts.push(`${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}: ${JSON.stringify(value)}`);
+      } else {
+        const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        parts.push(`${formattedKey}: ${value}`);
+      }
+    }
+  }
+  
+  return parts.length > 0 ? parts.join(', ') : '-';
+};
 
 type ActionFilter = 'ALL' | 'LOGIN' | 'CREATE' | 'UPDATE' | 'DELETE' | 'CHECK_IN' | 'CHECK_OUT' | 'PRE_CHECK_IN';
 
@@ -42,8 +92,12 @@ export default function AuditLog() {
 
   const filteredLogs = auditLogs.filter(log => {
     if (actionFilter !== 'ALL' && log.action !== actionFilter) return false;
-    if (searchTerm && !log.details.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !log.user.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const detailsStr = formatDetails(log.details).toLowerCase();
+      if (!detailsStr.includes(searchLower) && 
+          !log.user.toLowerCase().includes(searchLower)) return false;
+    }
     return true;
   });
 
@@ -126,7 +180,7 @@ export default function AuditLog() {
                         {log.action}
                       </span>
                     </td>
-                    <td className="table-cell text-sm">{log.details}</td>
+                    <td className="table-cell text-sm">{formatDetails(log.details)}</td>
                     <td className="table-cell font-mono text-xs text-muted-foreground">{log.ip}</td>
                   </tr>
                 ))}
