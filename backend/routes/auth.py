@@ -3,6 +3,8 @@ import secrets
 
 from flask import Blueprint, jsonify, request
 
+from supabase_client import get_supabase, get_default_church_id
+
 auth_bp = Blueprint("auth", __name__)
 
 # In-memory user store for now.
@@ -33,24 +35,52 @@ def login():
 
     token = _issue_token(email)
 
-    # Basic user object – the frontend mostly needs id, email, role.
-    user = users_db.get(
-        email,
-        {
-            "id": email,
-            "email": email,
-            "role": "admin" if email.startswith("admin") else "parent",
-            "name": email.split("@")[0].title(),
-            "profile_updated": True,
-        },
-    )
+    # Try to get user from Supabase first to get actual role
+    user = None
+    client = get_supabase()
+    if client:
+        try:
+            church_id = get_default_church_id()
+            if church_id:
+                res = (
+                    client.table("users")
+                    .select("user_id, email, role, name, profile_updated")
+                    .eq("church_id", church_id)
+                    .eq("email", email)
+                    .limit(1)
+                    .execute()
+                )
+                if res.data:
+                    db_user = res.data[0]
+                    user = {
+                        "id": db_user["user_id"],
+                        "email": db_user.get("email", email),
+                        "role": db_user.get("role", "").lower() if db_user.get("role") else "parent",
+                        "name": db_user.get("name") or email.split("@")[0].title(),
+                        "profile_updated": db_user.get("profile_updated", False),
+                    }
+        except Exception as exc:
+            print(f"⚠️ Error fetching user from Supabase: {exc}")
+
+    # Fallback to in-memory or default
+    if not user:
+        user = users_db.get(
+            email,
+            {
+                "id": email,
+                "email": email,
+                "role": "admin" if email.startswith("admin") else "parent",
+                "name": email.split("@")[0].title(),
+                "profile_updated": True,
+            },
+        )
     users_db[email] = user
 
     # 6-digit MFA code
     otp_code = "".join(str(secrets.randbelow(10)) for _ in range(6))
     mfa_codes[token] = {
         "code": otp_code,
-        "expires_at": datetime.utcnow() + timedelta(minutes=10),
+        "expires_at": datetime.utcnow() + timedelta(minutes=15),  # Increased from 10 to 15 minutes
         "user_email": email,
     }
 
@@ -85,6 +115,37 @@ def verify_mfa():
 
     email = entry["user_email"]
     user = users_db.get(email)
+    
+    # If user not in memory, try to get from Supabase
+    if not user:
+        client = get_supabase()
+        if client:
+            try:
+                church_id = get_default_church_id()
+                if church_id:
+                    res = (
+                        client.table("users")
+                        .select("user_id, email, role, name, phone, address, profile_updated")
+                        .eq("church_id", church_id)
+                        .eq("email", email)
+                        .limit(1)
+                        .execute()
+                    )
+                    if res.data:
+                        db_user = res.data[0]
+                        user = {
+                            "id": db_user["user_id"],
+                            "email": db_user.get("email", email),
+                            "role": db_user.get("role", "").lower() if db_user.get("role") else "parent",
+                            "name": db_user.get("name") or email.split("@")[0].title(),
+                            "phone": db_user.get("phone"),
+                            "address": db_user.get("address"),
+                            "profile_updated": db_user.get("profile_updated", False),
+                        }
+                        users_db[email] = user
+            except Exception as exc:
+                print(f"⚠️ Error fetching user from Supabase: {exc}")
+    
     if not user:
         return jsonify({"error": "User session expired. Please login again."}), 401
 
@@ -105,5 +166,74 @@ def verify_mfa():
 def logout():
     """Stateless logout – frontend just drops the token."""
     return jsonify({"data": {"success": True}})
+
+
+@auth_bp.post("/set-password")
+def set_password():
+    """Set or reset a user's password based on invitation token."""
+    data = request.get_json() or {}
+    email = str(data.get("email", "")).lower().strip()
+    password = str(data.get("password", ""))
+    invitation_token = data.get("invitation_token") or data.get("invitationToken")
+
+    if not email or not password:
+        return jsonify({"error": "Email and password are required"}), 400
+
+    # Try to get user from Supabase first to get actual role
+    user = None
+    client = get_supabase()
+    if client:
+        try:
+            church_id = get_default_church_id()
+            if church_id:
+                res = (
+                    client.table("users")
+                    .select("user_id, email, role, name, profile_updated")
+                    .eq("church_id", church_id)
+                    .eq("email", email)
+                    .limit(1)
+                    .execute()
+                )
+                if res.data:
+                    db_user = res.data[0]
+                    user = {
+                        "id": db_user["user_id"],
+                        "email": db_user.get("email", email),
+                        "role": db_user.get("role", "").lower() if db_user.get("role") else "parent",
+                        "name": db_user.get("name") or email.split("@")[0].title(),
+                        "profile_updated": db_user.get("profile_updated", False),
+                    }
+        except Exception as exc:
+            print(f"⚠️ Error fetching user from Supabase: {exc}")
+
+    # Fallback to default
+    if not user:
+        user = {
+            "id": email,
+            "email": email,
+            "role": "parent",
+            "name": email.split("@")[0].title(),
+            "profile_updated": False,
+        }
+    
+    token = _issue_token(email)
+    users_db[email] = user
+
+    # Generate MFA code
+    otp_code = "".join(str(secrets.randbelow(10)) for _ in range(6))
+    mfa_codes[token] = {
+        "code": otp_code,
+        "expires_at": datetime.utcnow() + timedelta(minutes=15),  # Increased from 10 to 15 minutes
+        "user_email": email,
+    }
+
+    return jsonify({
+        "data": {
+            "token": token,
+            "requiresMFA": True,
+            "otpCode": otp_code,
+            "user": user,
+        }
+    })
 
 

@@ -32,10 +32,16 @@ def init_supabase() -> Optional[Client]:
         return None
 
     try:
-        _client = create_client(supabase_url, supabase_key)
+        # Create client with explicit options to avoid proxy issues
+        _client = create_client(
+            supabase_url=supabase_url,
+            supabase_key=supabase_key,
+        )
         print("✅ Supabase client initialised")
     except Exception as exc:  # pragma: no cover - defensive logging
         print(f"❌ Failed to initialise Supabase client: {exc}")
+        import traceback
+        traceback.print_exc()
         _client = None
 
     return _client

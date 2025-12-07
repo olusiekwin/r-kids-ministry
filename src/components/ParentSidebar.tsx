@@ -13,6 +13,8 @@ export function ParentSidebar() {
 
   const menuItems: SidebarItem[] = [
     { label: 'Dashboard', path: '/parent' },
+    { label: 'Calendar & Sessions', path: '/calendar' },
+    { label: 'Book Session', path: '/parent/book-session' },
     { label: 'Add Child', path: '/parent/add-child' },
     { label: 'Notifications', path: '/parent/notifications', badge: 0 },
     { label: 'Attendance', path: '/parent/attendance' },
@@ -21,6 +23,9 @@ export function ParentSidebar() {
   const isActive = (path: string) => {
     if (path === '/parent') {
       return location.pathname === '/parent';
+    }
+    if (path === '/calendar') {
+      return location.pathname === '/calendar';
     }
     return location.pathname.startsWith(path);
   };

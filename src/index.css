@@ -36,7 +36,7 @@
     --input: 0 0% 90%;
     --ring: 0 0% 9%;
 
-    --radius: 6px;
+    --radius: 4px;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 0 0% 16%;
@@ -125,56 +125,62 @@
 }
 
 @layer components {
-  /* GitHub-style buttons - Black and White */
+  /* Professional buttons - Enhanced styling */
   .btn-primary {
-    @apply bg-foreground text-background px-4 py-2 text-sm font-medium rounded-md border border-foreground shadow-sm;
-    @apply hover:bg-foreground/90 transition-colors;
-    @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-foreground;
+    @apply bg-foreground text-background px-5 py-2.5 text-sm font-semibold rounded-md border border-foreground shadow-sm;
+    @apply hover:bg-foreground/90 hover:shadow-md transition-all duration-200;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-foreground disabled:hover:shadow-sm;
     @apply focus:outline-none focus:ring-2 focus:ring-foreground focus:ring-offset-2;
+    @apply active:scale-[0.98];
   }
 
   .btn-secondary {
-    @apply bg-background text-foreground px-4 py-2 text-sm font-medium rounded-md border border-border shadow-sm;
-    @apply hover:bg-muted transition-colors;
+    @apply bg-background text-foreground px-5 py-2.5 text-sm font-semibold rounded-md border border-border/80 shadow-sm;
+    @apply hover:bg-muted/80 hover:border-border hover:shadow-md transition-all duration-200;
     @apply disabled:opacity-50 disabled:cursor-not-allowed;
     @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+    @apply active:scale-[0.98];
   }
 
   .btn-ghost {
     @apply bg-transparent text-foreground px-4 py-2 text-sm font-medium rounded-md;
-    @apply hover:bg-muted transition-colors;
+    @apply hover:bg-muted/60 transition-all duration-200;
     @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
   }
 
   .btn-destructive {
-    @apply bg-foreground text-background px-4 py-2 text-sm font-medium rounded-md border border-foreground shadow-sm;
-    @apply hover:bg-foreground/90 transition-colors;
-    @apply focus:outline-none focus:ring-2 focus:ring-foreground focus:ring-offset-2;
+    @apply bg-red-600 text-white px-5 py-2.5 text-sm font-semibold rounded-md border border-red-600 shadow-sm;
+    @apply hover:bg-red-700 hover:shadow-md transition-all duration-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2;
+    @apply active:scale-[0.98];
   }
 
   .btn-success {
-    @apply bg-foreground text-background px-4 py-2 text-sm font-medium rounded-md border border-foreground shadow-sm;
-    @apply hover:bg-foreground/90 transition-colors;
-    @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-foreground;
-    @apply focus:outline-none focus:ring-2 focus:ring-foreground focus:ring-offset-2;
+    @apply bg-green-600 text-white px-5 py-2.5 text-sm font-semibold rounded-md border border-green-600 shadow-sm;
+    @apply hover:bg-green-700 hover:shadow-md transition-all duration-200;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-green-600 disabled:hover:shadow-sm;
+    @apply focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2;
+    @apply active:scale-[0.98];
   }
 
   .btn-outline {
-    @apply bg-transparent text-foreground px-4 py-2 text-sm font-medium rounded-md border border-border;
-    @apply hover:bg-muted hover:border-foreground transition-colors;
+    @apply bg-transparent text-foreground px-5 py-2.5 text-sm font-semibold rounded-md border-2 border-border;
+    @apply hover:bg-muted/60 hover:border-foreground/50 transition-all duration-200;
     @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+    @apply active:scale-[0.98];
   }
 
   .btn-sm {
-    @apply px-3 py-1.5 text-xs;
+    @apply px-3 py-1.5 text-xs font-medium;
   }
 
-  /* GitHub-style inputs - Black and White */
+  /* Professional inputs - Enhanced styling */
   .input-field {
-    @apply w-full px-3 py-2 text-sm bg-background border border-border rounded-md;
-    @apply focus:outline-none focus:ring-2 focus:ring-foreground focus:border-foreground;
-    @apply placeholder:text-muted-foreground;
-    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply w-full px-4 py-2.5 text-sm bg-background border-2 border-border rounded-md;
+    @apply focus:outline-none focus:ring-2 focus:ring-foreground/20 focus:border-foreground transition-all duration-200;
+    @apply placeholder:text-muted-foreground/60;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-muted/50;
+    @apply hover:border-foreground/30;
   }
 
   .photo-placeholder {
@@ -190,9 +196,15 @@
     @apply py-3 px-4 text-sm border-b border-border;
   }
 
-  /* GitHub-style cards */
+  /* Professional cards - Enhanced styling */
   .card-minimal {
-    @apply bg-card border border-border rounded-md p-4 shadow-sm;
+    @apply bg-card border border-border/80 rounded-md p-6 shadow-sm;
+    @apply hover:shadow-md transition-shadow duration-200;
+  }
+
+  .card-elevated {
+    @apply bg-card border border-border/60 rounded-md p-6 shadow-lg;
+    @apply hover:shadow-xl transition-all duration-200;
   }
 
   .nav-item {

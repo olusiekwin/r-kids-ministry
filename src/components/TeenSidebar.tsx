@@ -14,7 +14,7 @@ export function TeenSidebar() {
   const menuItems: SidebarItem[] = [
     { label: 'Dashboard', path: '/teen' },
     { label: 'Attendance', path: '/teen/attendance' },
-    { label: 'Profile', path: '/teen/profile' },
+    { label: 'Settings', path: '/settings' },
   ];
 
   const isActive = (path: string) => {

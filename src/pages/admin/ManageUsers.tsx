@@ -178,10 +178,10 @@ export default function ManageUsers() {
       <Header />
       <AdminSidebar />
       
-      <main className="md:ml-64 container py-8">
+      <main className="md:ml-64 container py-8 px-4 md:px-6 lg:px-8">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold mb-2">Manage Users</h1>
-          <p className="text-muted-foreground">Create and manage teachers, teens, and parents</p>
+          <p className="text-muted-foreground">Create and manage teacher, teen, and parent accounts</p>
         </div>
 
         {/* Tabs */}
@@ -194,7 +194,7 @@ export default function ManageUsers() {
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            Teachers
+            Teacher
           </button>
           <button
             onClick={() => setActiveTab('teen')}

@@ -351,20 +351,20 @@ Parent provides:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ PHASE 1: PARENT ADDS CHILD                                   │
+│ PHASE 1: PARENT ADDS CHILD                                  │
 ├─────────────────────────────────────────────────────────────┤
 │ Parent → Add Child Form → Submit                            │
-│   ↓                                                          │
+│   ↓                                                         │
 │ System → Auto-assign Group → Create Guardian → Create Child │
-│   ↓                                                          │
-│ Status: PENDING                                              │
+│   ↓                                                         │
+│ Status: PENDING                                             │
 └─────────────────────────────────────────────────────────────┘
                          ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ PHASE 2: ADMIN APPROVAL                                      │
+│ PHASE 2: ADMIN APPROVAL                                     │
 ├─────────────────────────────────────────────────────────────┤
 │ Admin → Review Pending → Approve Child                      │
-│   ↓                                                          │
+│   ↓                                                         │
 │ System → Update Status: ACTIVE → Notify Parent              │
 └─────────────────────────────────────────────────────────────┘
                          ↓
@@ -373,26 +373,26 @@ Parent provides:
 ├─────────────────────────────────────────────────────────────┤
 │ Option A: Pre-Check-In                                      │
 │   Parent → Generate QR → Show at Church                     │
-│                                                              │
+│                                                             │
 │ Option B: On-Site Check-In                                  │
 │   Teacher → Scan QR / Manual Entry                          │
-│   ↓                                                          │
+│   ↓                                                         │
 │ System → Validate → Create Check-In Record                  │
-│   ↓                                                          │
+│   ↓                                                         │
 │ Status: CHECKED_IN → Notify Parent                          │
 └─────────────────────────────────────────────────────────────┘
                          ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ PHASE 4: DURING SESSION                                      │
+│ PHASE 4: DURING SESSION                                     │
 ├─────────────────────────────────────────────────────────────┤
 │ System → Track Attendance → Update Dashboard                │
 └─────────────────────────────────────────────────────────────┘
                          ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ PHASE 5: READY FOR PICKUP                                    │
+│ PHASE 5: READY FOR PICKUP                                   │
 ├─────────────────────────────────────────────────────────────┤
 │ Teacher → Mark Ready for Pickup                             │
-│   ↓                                                          │
+│   ↓                                                         │
 │ System → Status: READY_FOR_PICKUP → Notify Parent           │
 └─────────────────────────────────────────────────────────────┘
                          ↓
@@ -400,19 +400,19 @@ Parent provides:
 │ PHASE 6: CHECK-OUT (Parent/Guardian Arrives)                │
 ├─────────────────────────────────────────────────────────────┤
 │ Parent/Guardian → Arrive at Pickup                          │
-│   ↓                                                          │
+│   ↓                                                         │
 │ Teacher → Generate Pickup QR/OTP → Verify Identity          │
-│   ↓                                                          │
+│   ↓                                                         │
 │ System → Verify → Update Check-Out Record                   │
-│   ↓                                                          │
+│   ↓                                                         │
 │ Status: CHECKED_OUT → Notify Parent                         │
 └─────────────────────────────────────────────────────────────┘
                          ↓
 ┌─────────────────────────────────────────────────────────────┐
-│ PHASE 7: POST CHECK-OUT                                      │
+│ PHASE 7: POST CHECK-OUT                                     │
 ├─────────────────────────────────────────────────────────────┤
 │ System → Update Attendance Summary → Update Analytics       │
-│   ↓                                                          │
+│   ↓                                                         │
 │ Log Activity → Send Final Notifications                     │
 └─────────────────────────────────────────────────────────────┘
 ```

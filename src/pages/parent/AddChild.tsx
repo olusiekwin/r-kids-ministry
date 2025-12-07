@@ -2,11 +2,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
+import { ParentSidebar } from '@/components/ParentSidebar';
 import { PhotoUpload } from '@/components/PhotoUpload';
+import { useAuth } from '@/contexts/AuthContext';
 import { GroupName } from '@/types';
 
 export default function AddChild() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -112,15 +115,18 @@ export default function AddChild() {
       // Import API
       const { childrenApi, guardiansApi } = await import('@/services/api');
       
-      // 1. Create child with status: 'pending' (group will be assigned by admin)
+      // 1. Create child - backend requires parentId
+      if (!user?.id) {
+        alert('User not found. Please login again.');
+        return;
+      }
+      
       const childData = {
         name: formData.name,
         dateOfBirth: formData.dateOfBirth,
         gender: formData.gender,
-        group: formData.group as GroupName, // Suggested group, admin will reassign
-        status: 'pending' as const,
-        submittedBy: 'parent' as const,
-        // Medical info would be stored separately
+        parentId: user.id, // Required by backend - will be resolved to guardian_id
+        // group is auto-assigned by backend based on age
       };
       
       const child = await childrenApi.create(childData);
@@ -179,8 +185,9 @@ export default function AddChild() {
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
+      <ParentSidebar />
       
-      <main className="container py-8">
+      <main className="md:ml-64 container py-8 px-4 md:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-semibold mb-2">Add Child</h1>

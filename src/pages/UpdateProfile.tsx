@@ -102,7 +102,15 @@ export default function UpdateProfile() {
 
       const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim();
       
+      // Get user ID - try multiple possible properties
+      const userId = user?.id || user?.user_id || (user as any)?.userId;
+      if (!userId) {
+        setError('User ID not found. Please login again.');
+        return;
+      }
+      
       const response = await usersApi.updateProfile({
+        userId: userId,  // Add user_id to the request
         name: fullName,
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),

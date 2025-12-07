@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
+import { TeacherSidebar } from '@/components/TeacherSidebar';
 import { GroupName } from '@/types';
 import { toast } from '@/components/ui/sonner';
+
+// TeacherSidebar component for navigation
 
 export default function AddChildToGroup() {
   const navigate = useNavigate();
@@ -55,8 +58,9 @@ export default function AddChildToGroup() {
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
+      <TeacherSidebar />
       
-      <main className="container py-8">
+      <main className="md:ml-64 container py-8 px-4 md:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-semibold mb-2">Add Child to Group</h1>

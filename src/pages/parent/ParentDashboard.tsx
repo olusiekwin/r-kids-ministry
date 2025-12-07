@@ -8,7 +8,7 @@ import { QRCodeGenerator } from '@/components/QRCodeGenerator';
 import { childrenApi, checkInApi, analyticsApi } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Child } from '@/types';
-import { CheckCircle2, Clock, Bell, X, BarChart3, Calendar, TrendingUp } from 'lucide-react';
+import { CheckCircle2, Clock, Bell, X, BarChart3, Calendar, TrendingUp, Users, QrCode, ArrowRight, BookOpen, Plus } from 'lucide-react';
 
 type ChildStatus = 'not_checked_in' | 'checked_in' | 'ready_for_pickup' | 'checked_out';
 
@@ -21,7 +21,7 @@ interface ChildWithStatus {
   status: ChildStatus;
   checkInTime?: string;
   parentId: string;
-  childStatus: 'active' | 'pending' | 'rejected'; // Original child status
+  childStatus: 'active' | 'pending' | 'rejected';
 }
 
 export default function ParentDashboard() {
@@ -50,7 +50,6 @@ export default function ParentDashboard() {
       setLoading(true);
       const children = await childrenApi.list({ parent_id: user.id });
       
-      // Map children with status (simplified - in real app, get from check-in API)
       const childrenWithStatus: ChildWithStatus[] = children.map(child => ({
         id: child.id,
         registrationId: child.registrationId,
@@ -61,14 +60,13 @@ export default function ParentDashboard() {
         childStatus: child.status,
         status: child.status === 'pending' 
           ? 'not_checked_in' as ChildStatus
-          : 'not_checked_in' as ChildStatus, // Default status
+          : 'not_checked_in' as ChildStatus,
         checkInTime: undefined,
       }));
       
       setMyChildren(childrenWithStatus);
     } catch (error: any) {
       console.error('Failed to load children:', error);
-      // Set empty array if backend is not available
       setMyChildren([]);
     } finally {
       setLoading(false);
@@ -99,8 +97,6 @@ export default function ParentDashboard() {
     try {
       const response = await checkInApi.generateQR(childId);
       setShowQRModal({ childId, qrData: response.qr_code });
-      
-      // In real app: Send QR code via email/SMS
     } catch (error) {
       console.error('Failed to generate QR code:', error);
       alert('Failed to generate QR code. Please try again.');
@@ -111,22 +107,22 @@ export default function ParentDashboard() {
     switch (status) {
       case 'checked_in':
         return (
-          <span className="status-badge bg-muted text-foreground border border-border flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-600 border border-green-500/20">
+            <CheckCircle2 className="w-3.5 h-3.5" />
             Checked In
           </span>
         );
       case 'ready_for_pickup':
         return (
-          <span className="status-badge bg-foreground text-background border border-foreground flex items-center gap-1">
-            <Bell className="w-3 h-3" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+            <Bell className="w-3.5 h-3.5" />
             Ready for Pickup
           </span>
         );
       case 'checked_out':
         return (
-          <span className="status-badge bg-muted text-muted-foreground border border-border flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" />
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border">
+            <CheckCircle2 className="w-3.5 h-3.5" />
             Checked Out
           </span>
         );
@@ -136,64 +132,146 @@ export default function ParentDashboard() {
   };
 
   const pendingCount = myChildren.filter(c => c.childStatus === 'pending').length;
+  const activeCount = myChildren.filter(c => c.childStatus === 'active').length;
+  const checkedInCount = myChildren.filter(c => c.status === 'checked_in').length;
+  const totalSessions = Object.values(childAnalytics).reduce((sum, a) => sum + (a?.attendanceCount || 0), 0);
 
   return (
-    <div className="min-h-screen bg-background pb-16 md:pb-0">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 pb-16 md:pb-0">
       <Header />
       <ParentSidebar />
       
-      <main className="md:ml-64 container py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-semibold mb-2">Parent Dashboard</h1>
-            <p className="text-muted-foreground">Welcome, {user?.name}. Manage your children's check-in and attendance.</p>
+      <main className="md:ml-64 container py-8 px-4 md:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Welcome Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-2">Welcome back, {user?.name || 'Parent'}!</h1>
+            <p className="text-muted-foreground text-lg">Manage your children's check-in, attendance, and more</p>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-lg bg-blue-500/10">
+                  <Users className="w-6 h-6 text-blue-500" />
+                </div>
+                <TrendingUp className="w-5 h-5 text-green-500" />
+              </div>
+              <p className="text-sm text-muted-foreground mb-1">Total Children</p>
+              <p className="text-3xl font-bold">{myChildren.length}</p>
+            </div>
+
+            <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-lg bg-green-500/10">
+                  <CheckCircle2 className="w-6 h-6 text-green-500" />
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground mb-1">Active Children</p>
+              <p className="text-3xl font-bold">{activeCount}</p>
+            </div>
+
+            <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-lg bg-purple-500/10">
+                  <Calendar className="w-6 h-6 text-purple-500" />
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground mb-1">Total Sessions</p>
+              <p className="text-3xl font-bold">{totalSessions}</p>
+            </div>
+
+            <div className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-lg bg-orange-500/10">
+                  <Clock className="w-6 h-6 text-orange-500" />
+                </div>
+              </div>
+              <p className="text-sm text-muted-foreground mb-1">Checked In Today</p>
+              <p className="text-3xl font-bold">{checkedInCount}</p>
+            </div>
           </div>
           
-          <div className="flex justify-center gap-3 mb-8">
+          {/* Quick Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <button
-              onClick={() => navigate('/parent/notifications')}
-              className="btn-secondary relative"
+              onClick={() => navigate('/parent/book-session')}
+              className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-all hover:scale-[1.02] text-left group"
             >
-              Notifications
-              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-foreground text-background">
-                0
-              </span>
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-lg bg-primary/10">
+                  <Calendar className="w-6 h-6 text-primary" />
+                </div>
+                <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Book Session</h3>
+              <p className="text-sm text-muted-foreground">Register your children for upcoming sessions</p>
             </button>
+
+            <button
+              onClick={() => navigate('/parent/attendance')}
+              className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-all hover:scale-[1.02] text-left group"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-lg bg-blue-500/10">
+                  <BarChart3 className="w-6 h-6 text-blue-500" />
+                </div>
+                <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">View Attendance</h3>
+              <p className="text-sm text-muted-foreground">Track your children's attendance history</p>
+            </button>
+
             <button
               onClick={() => navigate('/parent/add-child')}
-              className="btn-primary"
+              className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-all hover:scale-[1.02] text-left group"
             >
-              Add Child
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-lg bg-green-500/10">
+                  <Plus className="w-6 h-6 text-green-500" />
+                </div>
+                <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-green-500 group-hover:translate-x-1 transition-all" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Add Child</h3>
+              <p className="text-sm text-muted-foreground">Register a new child to the ministry</p>
             </button>
           </div>
 
-          {/* Pending Children */}
+          {/* Pending Approvals Alert */}
           {pendingCount > 0 && (
-            <div className="bg-muted border border-border rounded-md p-5 mb-8 text-center">
-              <p className="text-sm font-semibold mb-2">Pending Approvals</p>
-              <p className="text-xs text-muted-foreground">
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-6 mb-8">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-orange-500/20">
+                  <Clock className="w-5 h-5 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold mb-1">Pending Approvals</h3>
+                  <p className="text-sm text-muted-foreground">
                 You have {pendingCount} child(ren) waiting for admin approval.
               </p>
+                </div>
+              </div>
             </div>
           )}
 
         {/* QR Code Modal */}
         {showQRModal && (
           <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-background p-6 rounded-md max-w-md w-full border border-border shadow-lg">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Pre-Check-In QR Code</h3>
+              <div className="bg-card p-8 rounded-xl max-w-md w-full border border-border shadow-xl">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-semibold">Pre-Check-In QR Code</h3>
                 <button
                   onClick={() => setShowQRModal(null)}
                   className="btn-ghost btn-sm"
                 >
-                  <X className="w-4 h-4" />
+                    <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="flex justify-center mb-4">
+                <div className="flex justify-center mb-6 bg-background p-4 rounded-lg">
                 <QRCodeGenerator value={showQRModal.qrData} size={200} />
               </div>
-              <p className="text-sm text-muted-foreground text-center mb-4">
+                <p className="text-sm text-muted-foreground text-center mb-6">
                 Show this QR code to the teacher at check-in. Valid for 15 minutes.
               </p>
               <button
@@ -208,12 +286,14 @@ export default function ParentDashboard() {
 
           {/* Children List */}
           {loading ? (
-            <div className="text-center py-16">
+            <div className="text-center py-16 bg-card border border-border rounded-xl">
               <p className="text-muted-foreground">Loading children...</p>
             </div>
           ) : myChildren.length === 0 ? (
-            <div className="text-center py-16">
-              <p className="text-muted-foreground mb-6">No children registered yet.</p>
+            <div className="text-center py-16 bg-card border border-border rounded-xl">
+              <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-xl font-semibold mb-2">No children registered yet</h3>
+              <p className="text-muted-foreground mb-6">Get started by adding your first child</p>
               <button
                 onClick={() => navigate('/parent/add-child')}
                 className="btn-primary"
@@ -223,27 +303,30 @@ export default function ParentDashboard() {
             </div>
           ) : (
             <div className="space-y-6">
+              <h2 className="text-2xl font-semibold">My Children</h2>
           {myChildren.map((child) => {
               const isPending = child.childStatus === 'pending';
+                const analytics = childAnalytics[child.id] || {};
             
             return (
-                <div key={child.id} className={`border rounded-md shadow-sm ${
-                  isPending ? 'border-border bg-muted/30' : 
-                  child.status === 'ready_for_pickup' ? 'border-foreground/20 bg-muted/50' :
-                  child.status === 'checked_in' ? 'border-border bg-muted/20' :
-                  'border-border bg-background'
-                }`}>
-                  <div className="flex items-start gap-6 p-6">
+                  <div key={child.id} className={`bg-card border rounded-xl shadow-sm overflow-hidden ${
+                    isPending ? 'border-orange-500/20' : 
+                    child.status === 'ready_for_pickup' ? 'border-primary/20' :
+                    child.status === 'checked_in' ? 'border-green-500/20' :
+                    'border-border'
+                  }`}>
+                    <div className="p-6">
+                      <div className="flex items-start gap-6">
                   <PhotoPlaceholder size="lg" />
                   <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-start justify-between mb-3">
                         <div>
-                    <p className="font-mono text-sm text-muted-foreground">
+                              <p className="font-mono text-xs text-muted-foreground mb-1">
                       {child.registrationId}
                     </p>
-                    <p className="text-lg font-medium">
-                      {child.name} ({child.age})
-                    </p>
+                              <h3 className="text-xl font-semibold mb-1">
+                                {child.name} <span className="text-muted-foreground font-normal">({child.age})</span>
+                              </h3>
                     <p className="text-sm text-muted-foreground">
                       Group: {child.group}
                     </p>
@@ -257,66 +340,63 @@ export default function ParentDashboard() {
                       </div>
                       
                       {isPending && (
-                        <span className="inline-block mt-2 status-badge bg-muted text-foreground border border-border">
+                            <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-orange-500/10 text-orange-600 border border-orange-500/20">
+                              <Clock className="w-3.5 h-3.5" />
                           Pending Approval
-                        </span>
-                      )}
+                            </div>
+                          )}
 
-                      {/* Child Progress Analytics */}
-                      {!isPending && childAnalytics[child.id] && (
-                        <div className="mt-4 grid grid-cols-3 gap-3 pt-4 border-t border-border">
+                          {/* Child Analytics */}
+                          {!isPending && Object.keys(analytics).length > 0 && (
+                            <div className="mt-6 grid grid-cols-3 gap-4 pt-6 border-t border-border">
                           <div className="text-center">
-                            <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                                <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-2">
                               <Calendar className="w-4 h-4" />
-                              <span className="text-xs">Sessions</span>
+                                  <span className="text-xs font-medium">Sessions</span>
                             </div>
-                            <p className="text-lg font-semibold text-foreground">
-                              {childAnalytics[child.id].total_sessions || 0}
+                                <p className="text-2xl font-bold">
+                                  {analytics.attendanceCount || 0}
                             </p>
                           </div>
                           <div className="text-center">
-                            <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                                <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-2">
                               <BarChart3 className="w-4 h-4" />
-                              <span className="text-xs">Attendance</span>
+                                  <span className="text-xs font-medium">Attendance</span>
                             </div>
-                            <p className="text-lg font-semibold text-foreground">
-                              {childAnalytics[child.id].attendance_rate?.toFixed(0) || 0}%
+                                <p className="text-2xl font-bold">
+                                  {analytics.attendanceRate?.toFixed(0) || 0}%
                             </p>
                           </div>
                           <div className="text-center">
-                            <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
+                                <div className="flex items-center justify-center gap-1.5 text-muted-foreground mb-2">
                               <TrendingUp className="w-4 h-4" />
-                              <span className="text-xs">Progress</span>
+                                  <span className="text-xs font-medium">Progress</span>
                             </div>
-                            <p className="text-lg font-semibold text-foreground">
-                              {childAnalytics[child.id].attendance_trend?.length > 0 
-                                ? childAnalytics[child.id].attendance_trend[childAnalytics[child.id].attendance_trend.length - 1].sessions_attended || 0
-                                : 0}
+                                <p className="text-2xl font-bold">
+                                  {analytics.recentCheckIns?.length || 0}
                             </p>
                           </div>
                         </div>
                       )}
+                        </div>
                     </div>
                 </div>
                 
-                  <div className="flex flex-wrap justify-center gap-3 p-6 pt-0 border-t border-border mt-6">
-                    {isPending ? (
-                      <p className="text-sm text-muted-foreground">
-                        Waiting for admin approval...
-                      </p>
-                    ) : (
-                      <>
+                    {!isPending && (
+                      <div className="px-6 py-4 bg-muted/30 border-t border-border flex flex-wrap gap-3">
                         {child.status === 'not_checked_in' && (
                     <button
                             onClick={() => handlePreCheckIn(child.id, child.registrationId)}
                             className="btn-primary"
                     >
+                            <QrCode className="w-4 h-4 inline mr-2" />
                       Pre-Check-In
                     </button>
                   )}
                         
                         {child.status === 'checked_in' && (
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-muted-foreground flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4" />
                             Child is checked in. You'll be notified when ready for pickup.
                           </p>
                         )}
@@ -324,7 +404,7 @@ export default function ParentDashboard() {
                         {child.status === 'ready_for_pickup' && (
                           <button
                             onClick={() => navigate('/parent/notifications')}
-                            className="btn-primary flex-1"
+                            className="btn-primary"
                           >
                             <Bell className="w-4 h-4 inline mr-2" />
                             Pick Up Now
@@ -335,6 +415,7 @@ export default function ParentDashboard() {
                           onClick={() => navigate(`/parent/child/${child.id}`)}
                           className="btn-secondary"
                   >
+                          <BookOpen className="w-4 h-4 inline mr-2" />
                     View Profile
                   </button>
                         <button
@@ -349,9 +430,8 @@ export default function ParentDashboard() {
                   >
                     Attendance
                   </button>
-                      </>
+                      </div>
                     )}
-                  </div>
               </div>
             );
           })}

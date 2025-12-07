@@ -2,9 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
+import { TeacherSidebar } from '@/components/TeacherSidebar';
 import { QRCodeGenerator } from '@/components/QRCodeGenerator';
 import { childrenApi, checkOutApi } from '@/services/api';
 import { Child } from '@/types';
+
+// TeacherSidebar component for navigation
 
 export default function SendPickupNotification() {
   const navigate = useNavigate();
@@ -47,11 +50,32 @@ export default function SendPickupNotification() {
     }
   };
 
+  if (!childId) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <TeacherSidebar />
+        <main className="md:ml-64 container py-6 px-4 md:px-6 lg:px-8">
+          <div className="max-w-2xl">
+            <h1 className="text-2xl font-semibold mb-4">Send Pickup Notification</h1>
+            <p className="text-muted-foreground mb-6">
+              Please select a child from the dashboard or use a direct link with a child ID.
+            </p>
+            <button onClick={() => navigate('/teacher')} className="btn-secondary">
+              Back to Dashboard
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   if (!child) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="container py-6">
+        <TeacherSidebar />
+        <main className="md:ml-64 container py-6 px-4 md:px-6 lg:px-8">
           <p className="text-destructive">Child not found</p>
           <button onClick={() => navigate('/teacher')} className="btn-secondary mt-4">
             Back to Dashboard
@@ -64,8 +88,9 @@ export default function SendPickupNotification() {
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
+      <TeacherSidebar />
       
-      <main className="container py-8">
+      <main className="md:ml-64 container py-8 px-4 md:px-6 lg:px-8">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold mb-2">Send Pickup Notification</h1>
           <p className="text-muted-foreground">Notify parent that {child.name} is ready for pickup</p>

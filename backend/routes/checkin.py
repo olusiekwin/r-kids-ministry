@@ -1,0 +1,413 @@
+"""
+Check-In Routes - Phase 3 from USER_CASE_FLOW.md
+Handles QR code generation, scanning, manual check-in, and OTP verification.
+"""
+
+from datetime import datetime, timedelta
+import secrets
+
+from flask import Blueprint, jsonify, request
+
+from supabase_client import get_supabase, get_default_church_id
+from utils.qr_codes import generate_qr_code, generate_otp_code, validate_qr_code
+from utils.notifications import notify_check_in
+
+checkin_bp = Blueprint("checkin", __name__)
+
+# In-memory store for QR codes and OTPs (temporary, expires)
+qr_codes_db: dict[str, dict] = {}  # {qr_code: {child_id, expires_at, guardian_id, data}}
+otp_codes_db: dict[str, dict] = {}  # {otp_code: {child_id, expires_at, guardian_id}}
+
+
+@checkin_bp.post("/generate-qr")
+def generate_qr():
+    """
+    Generate QR code for pre-check-in - Phase 3A.1 from USER_CASE_FLOW.md
+    Parent generates QR code before arriving at church (15-minute validity).
+    """
+    data = request.get_json() or {}
+    child_id = data.get("child_id") or data.get("childId")
+    guardian_id = data.get("guardian_id") or data.get("guardianId")
+
+    if not child_id:
+        return jsonify({"error": "child_id is required"}), 400
+
+    client = get_supabase()
+    if client is None:
+        return jsonify({"error": "Supabase not configured"}), 500
+
+    church_id = get_default_church_id()
+    if church_id is None:
+        return jsonify({"error": "No church configured"}), 500
+
+    try:
+        # Verify child exists
+        child_res = (
+            client.table("children")
+            .select("child_id, name")
+            .eq("child_id", child_id)
+            .eq("church_id", church_id)
+            .execute()
+        )
+        if not child_res.data:
+            return jsonify({"error": "Child not found"}), 404
+        child = child_res.data[0]
+
+        # Generate QR code using utility
+        qr_result = generate_qr_code(
+            child_id=child_id,
+            guardian_id=guardian_id,
+            purpose="checkin",
+            expires_minutes=15,
+        )
+        qr_code = qr_result["qr_code"]
+        expires_at = qr_result["expires_at"]
+
+        # Store QR code
+        qr_codes_db[qr_code] = {
+            "child_id": child_id,
+            "guardian_id": guardian_id,
+            "expires_at": expires_at,
+            "data": qr_result["data"],
+        }
+
+        return jsonify({
+            "data": {
+                "qrCode": qr_code,
+                "expiresAt": expires_at.isoformat(),
+                "childName": child.get("name"),
+            }
+        })
+    except Exception as exc:  # pragma: no cover
+        print(f"⚠️ Error generating QR code: {exc}")
+        return jsonify({"error": "Failed to generate QR code"}), 500
+
+
+@checkin_bp.post("/scan-qr")
+def scan_qr():
+    """
+    Scan and verify QR code for check-in - Phase 3B.2 from USER_CASE_FLOW.md
+    Teacher scans QR code from parent's phone.
+    Now supports session-based check-in.
+    """
+    data = request.get_json() or {}
+    qr_code = data.get("qr_code") or data.get("qrCode")
+    session_id = data.get("session_id") or data.get("sessionId")
+    teacher_id = data.get("teacher_id") or data.get("teacherId")  # From auth token in real app
+
+    if not qr_code:
+        return jsonify({"error": "QR code is required"}), 400
+
+    client = get_supabase()
+    if client is None:
+        return jsonify({"error": "Supabase not configured"}), 500
+
+    church_id = get_default_church_id()
+    if church_id is None:
+        return jsonify({"error": "No church configured"}), 500
+
+    # If session_id provided, look up booking
+    booking_id = None
+    child_id = None
+    guardian_id = None
+
+    if session_id:
+        try:
+            # Find booking by QR code and session
+            booking_res = (
+                client.table("session_bookings")
+                .select("booking_id, child_id, guardian_id, status")
+                .eq("session_id", session_id)
+                .eq("qr_code", qr_code)
+                .execute()
+            )
+            
+            if booking_res.data:
+                booking = booking_res.data[0]
+                if booking.get("status") != "booked":
+                    return jsonify({"error": "Child already checked in or cancelled"}), 400
+                booking_id = booking["booking_id"]
+                child_id = booking["child_id"]
+                guardian_id = booking.get("guardian_id")
+            else:
+                return jsonify({"error": "No booking found for this QR code and session"}), 404
+        except Exception as exc:
+            print(f"⚠️ Error looking up booking: {exc}")
+            return jsonify({"error": "Failed to verify booking"}), 500
+    else:
+        # Legacy: Validate QR code using in-memory store
+        is_valid, error_msg = validate_qr_code(qr_code, qr_codes_db)
+        if not is_valid:
+            if qr_code in qr_codes_db:
+                del qr_codes_db[qr_code]
+            return jsonify({"error": error_msg or "Invalid or expired QR code"}), 401
+
+        qr_data = qr_codes_db[qr_code]
+        child_id = qr_data["child_id"]
+        guardian_id = qr_data.get("guardian_id")
+
+    # Create check-in record
+    return _create_checkin_record(
+        child_id, guardian_id, teacher_id, "QR", 
+        qr_code=qr_code, session_id=session_id, booking_id=booking_id
+    )
+
+
+@checkin_bp.post("/manual")
+def manual_checkin():
+    """
+    Manual check-in by teacher - Phase 3B.3 from USER_CASE_FLOW.md
+    Teacher searches for child and checks them in manually.
+    Now supports session-based check-in.
+    """
+    data = request.get_json() or {}
+    child_id = data.get("child_id") or data.get("childId")
+    session_id = data.get("session_id") or data.get("sessionId")
+    teacher_id = data.get("teacher_id") or data.get("teacherId")  # From auth token
+    guardian_id = data.get("guardian_id") or data.get("guardianId")  # Optional
+
+    if not child_id:
+        return jsonify({"error": "child_id is required"}), 400
+
+    client = get_supabase()
+    booking_id = None
+
+    # If session_id provided, find booking
+    if session_id:
+        if client is None:
+            return jsonify({"error": "Supabase not configured"}), 500
+        
+        try:
+            booking_res = (
+                client.table("session_bookings")
+                .select("booking_id, guardian_id, status")
+                .eq("session_id", session_id)
+                .eq("child_id", child_id)
+                .eq("status", "booked")
+                .execute()
+            )
+            
+            if booking_res.data:
+                booking = booking_res.data[0]
+                booking_id = booking["booking_id"]
+                if not guardian_id:
+                    guardian_id = booking.get("guardian_id")
+            else:
+                return jsonify({"error": "Child is not booked for this session"}), 404
+        except Exception as exc:
+            print(f"⚠️ Error looking up booking: {exc}")
+            return jsonify({"error": "Failed to verify booking"}), 500
+
+    return _create_checkin_record(
+        child_id, guardian_id, teacher_id, "manual",
+        session_id=session_id, booking_id=booking_id
+    )
+
+
+@checkin_bp.post("/verify-otp")
+def verify_otp():
+    """
+    Verify OTP code for check-in - Alternative to QR code.
+    Now supports session-based check-in.
+    """
+    data = request.get_json() or {}
+    otp_code = data.get("otp_code") or data.get("otpCode")
+    session_id = data.get("session_id") or data.get("sessionId")
+    teacher_id = data.get("teacher_id") or data.get("teacherId")
+
+    if not otp_code:
+        return jsonify({"error": "OTP code is required"}), 400
+
+    client = get_supabase()
+    booking_id = None
+    child_id = None
+    guardian_id = None
+
+    if session_id:
+        # Look up booking by OTP and session
+        if client is None:
+            return jsonify({"error": "Supabase not configured"}), 500
+        
+        try:
+            booking_res = (
+                client.table("session_bookings")
+                .select("booking_id, child_id, guardian_id, status")
+                .eq("session_id", session_id)
+                .eq("otp_code", otp_code)
+                .execute()
+            )
+            
+            if booking_res.data:
+                booking = booking_res.data[0]
+                if booking.get("status") != "booked":
+                    return jsonify({"error": "Child already checked in or cancelled"}), 400
+                booking_id = booking["booking_id"]
+                child_id = booking["child_id"]
+                guardian_id = booking.get("guardian_id")
+            else:
+                return jsonify({"error": "No booking found for this OTP and session"}), 404
+        except Exception as exc:
+            print(f"⚠️ Error looking up booking: {exc}")
+            return jsonify({"error": "Failed to verify booking"}), 500
+    else:
+        # Legacy: Check in-memory OTP store
+        if otp_code not in otp_codes_db:
+            return jsonify({"error": "Invalid or expired OTP code"}), 401
+
+        otp_data = otp_codes_db[otp_code]
+        if datetime.utcnow() > otp_data["expires_at"]:
+            del otp_codes_db[otp_code]
+            return jsonify({"error": "OTP code expired"}), 401
+
+        child_id = otp_data["child_id"]
+        guardian_id = otp_data.get("guardian_id")
+        del otp_codes_db[otp_code]
+
+    # Create check-in record
+    return _create_checkin_record(
+        child_id, guardian_id, teacher_id, "OTP", 
+        otp_code=otp_code, session_id=session_id, booking_id=booking_id
+    )
+
+
+@checkin_bp.get("/status/<child_id>")
+def checkin_status(child_id: str):
+    """
+    Get current check-in status for a child - Phase 4 from USER_CASE_FLOW.md
+    Returns whether child is checked in, ready for pickup, or checked out.
+    """
+    client = get_supabase()
+    if client is None:
+        return jsonify({"error": "Supabase not configured"}), 500
+
+    church_id = get_default_church_id()
+    if church_id is None:
+        return jsonify({"error": "No church configured"}), 500
+
+    try:
+        # Get most recent check-in record for today
+        today = datetime.utcnow().date().isoformat()
+        res = (
+            client.table("check_in_records")
+            .select("*")
+            .eq("child_id", child_id)
+            .eq("church_id", church_id)
+            .gte("timestamp_in", today)
+            .order("timestamp_in", desc=True)
+            .limit(1)
+            .execute()
+        )
+
+        if not res.data:
+            return jsonify({"data": {"status": "not_checked_in", "checkedIn": False}})
+
+        record = res.data[0]
+        has_checkout = record.get("timestamp_out") is not None
+
+        return jsonify({
+            "data": {
+                "status": "checked_out" if has_checkout else "checked_in",
+                "checkedIn": not has_checkout,
+                "checkedOut": has_checkout,
+                "timestampIn": record.get("timestamp_in"),
+                "timestampOut": record.get("timestamp_out"),
+            }
+        })
+    except Exception as exc:  # pragma: no cover
+        print(f"⚠️ Error getting check-in status: {exc}")
+        return jsonify({"error": "Failed to get check-in status"}), 500
+
+
+def _create_checkin_record(
+    child_id: str,
+    guardian_id: str | None,
+    teacher_id: str | None,
+    method: str,
+    qr_code: str | None = None,
+    otp_code: str | None = None,
+    session_id: str | None = None,
+    booking_id: str | None = None,
+):
+    """Helper to create check-in record in Supabase - Phase 3B.4 from USER_CASE_FLOW.md.
+    Now supports linking to sessions and bookings.
+    """
+    client = get_supabase()
+    if client is None:
+        return jsonify({"error": "Supabase not configured"}), 500
+
+    church_id = get_default_church_id()
+    if church_id is None:
+        return jsonify({"error": "No church configured"}), 500
+
+    try:
+        # Verify child exists
+        child_res = (
+            client.table("children")
+            .select("child_id, name, group_id")
+            .eq("child_id", child_id)
+            .eq("church_id", church_id)
+            .execute()
+        )
+        if not child_res.data:
+            return jsonify({"error": "Child not found"}), 404
+        child = child_res.data[0]
+
+        # Create check-in record
+        record_data = {
+            "church_id": church_id,
+            "child_id": child_id,
+            "method": method,
+            "timestamp_in": datetime.utcnow().isoformat(),
+        }
+        if guardian_id:
+            record_data["guardian_id"] = guardian_id
+        if teacher_id:
+            record_data["teacher_id"] = teacher_id
+        if qr_code:
+            record_data["qr_code"] = qr_code
+        if otp_code:
+            record_data["otp_code"] = otp_code
+        if session_id:
+            record_data["session_id"] = session_id
+        if booking_id:
+            record_data["booking_id"] = booking_id
+
+        res = client.table("check_in_records").insert(record_data).execute()
+        if not res.data:
+            return jsonify({"error": "Failed to create check-in record"}), 500
+
+        record = res.data[0]
+
+        # Update booking status if booking_id exists
+        if booking_id:
+            try:
+                client.table("session_bookings").update({
+                    "status": "checked_in",
+                    "checked_in_at": datetime.utcnow().isoformat(),
+                }).eq("booking_id", booking_id).execute()
+            except Exception as e:
+                print(f"⚠️ Error updating booking status: {e}")
+
+        # Send notification to parent (Phase 3B.4)
+        notify_check_in(
+            child_id=child_id,
+            guardian_id=guardian_id,
+            child_name=child.get("name"),
+        )
+
+        return jsonify({
+            "data": {
+                "recordId": record["record_id"],
+                "childId": child_id,
+                "childName": child.get("name"),
+                "timestampIn": record.get("timestamp_in"),
+                "method": method,
+                "status": "checked_in",
+                "sessionId": session_id,
+                "bookingId": booking_id,
+            }
+        }), 201
+    except Exception as exc:  # pragma: no cover
+        print(f"⚠️ Error creating check-in record: {exc}")
+        return jsonify({"error": "Failed to create check-in record"}), 500
+

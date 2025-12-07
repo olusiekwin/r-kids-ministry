@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
+import { ParentSidebar } from '@/components/ParentSidebar';
 import { childrenApi, attendanceApi } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Child } from '@/types';
@@ -19,15 +20,87 @@ export default function ParentAttendance() {
     }
   }, [user]);
 
+  const formatDate = (dateString: string | null | undefined): string => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        // Try parsing as ISO string without T separator
+        const date2 = new Date(dateString.replace(' ', 'T'));
+        if (isNaN(date2.getTime())) {
+          return 'Invalid date';
+        }
+        return date2.toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'short', 
+          day: 'numeric' 
+        });
+      }
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      });
+    } catch (e) {
+      return 'Invalid date';
+    }
+  };
+
+  const formatTime = (dateString: string | null | undefined): string => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        const date2 = new Date(dateString.replace(' ', 'T'));
+        if (isNaN(date2.getTime())) {
+          return '-';
+        }
+        return date2.toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+      }
+      return date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    } catch (e) {
+      return '-';
+    }
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
-      const [childrenData, attendanceData] = await Promise.all([
-        childrenApi.list({ parent_id: user!.id }),
-        attendanceApi.list({ child_id: user!.id }),
-      ]);
+      // First get children for this parent
+      const childrenData = await childrenApi.list({ parent_id: user!.id });
       setChildren(childrenData);
-      setAttendance(attendanceData);
+      
+      // Then get attendance for all children (or fetch individually)
+      // For now, fetch all attendance records and filter by child IDs on frontend
+      // Or fetch attendance for each child
+      if (childrenData.length > 0) {
+        const childIds = childrenData.map(c => c.id);
+        // Fetch attendance for all children - backend will handle filtering
+        // We'll fetch all attendance and filter by child IDs on frontend
+        const allAttendance = await attendanceApi.list();
+        // Backend returns data in { data: [...] } format or just array
+        const attendanceArray = Array.isArray(allAttendance) ? allAttendance : (allAttendance.data || []);
+        const filteredAttendance = attendanceArray
+          .filter((a: any) => childIds.includes(a.childId || a.child_id))
+          .map((a: any) => ({
+            ...a,
+            date: a.timestampIn ? formatDate(a.timestampIn) : (a.date || '-'),
+            checkInTime: a.timestampIn ? formatTime(a.timestampIn) : (a.checkInTime || '-'),
+            checkOutTime: a.timestampOut ? formatTime(a.timestampOut) : (a.checkOutTime || '-'),
+            status: a.timestampIn ? 'present' : 'absent',
+            childId: a.childId || a.child_id,
+            childName: a.childName || a.child_name,
+          }));
+        setAttendance(filteredAttendance);
+      } else {
+        setAttendance([]);
+      }
     } catch (error) {
       console.error('Failed to load data:', error);
       setChildren([]);
@@ -40,8 +113,9 @@ export default function ParentAttendance() {
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
+      <ParentSidebar />
       
-      <main className="container py-8">
+      <main className="md:ml-64 container py-8 px-4 md:px-6 lg:px-8">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold mb-2">Attendance History</h1>
           <p className="text-muted-foreground">View your children's attendance records</p>
@@ -90,11 +164,11 @@ export default function ParentAttendance() {
               </thead>
               <tbody>
                       {attendance.map((record: any, index: number) => (
-                        <tr key={index} className="hover:bg-muted/30 transition-colors border-b border-border last:border-0">
-                    <td className="table-cell">{record.date}</td>
+                        <tr key={record.id || index} className="hover:bg-muted/30 transition-colors border-b border-border last:border-0">
+                    <td className="table-cell">{record.date || '-'}</td>
                     <td className="table-cell">
                       <span className="font-mono text-xs text-muted-foreground mr-2">
-                        {record.childId}
+                        {record.registrationId || record.registration_id || record.childId || 'N/A'}
                       </span>
                             {record.childName || 'N/A'}
                     </td>
@@ -104,7 +178,7 @@ export default function ParentAttendance() {
                                 ? 'bg-foreground text-background border border-foreground' 
                                 : 'bg-muted text-muted-foreground border border-border'
                       }`}>
-                        {record.status}
+                        {record.status || 'present'}
                       </span>
                     </td>
                           <td className="table-cell font-mono text-sm">{record.checkInTime || '-'}</td>

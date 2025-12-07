@@ -2,6 +2,11 @@
 R-KIDS Ministry Management System - Flask Backend API (clean structure)
 """
 
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 from flask import Flask
 from flask_cors import CORS
 

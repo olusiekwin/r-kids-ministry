@@ -9,6 +9,7 @@ export const API_ENDPOINTS = {
     VERIFY_MFA: '/auth/verify-mfa',
     LOGOUT: '/auth/logout',
     REFRESH: '/auth/refresh',
+    SET_PASSWORD: '/auth/set-password',
   },
 
   // Parents
@@ -18,6 +19,9 @@ export const API_ENDPOINTS = {
     GET: (id: string) => `/parents/${id}`,
     UPDATE: (id: string) => `/parents/${id}`,
     DELETE: (id: string) => `/parents/${id}`,
+    SEARCH: '/parents/search',
+    DETAILS: (id: string) => `/parents/${id}/details`,
+    UPLOAD_IMAGE: (id: string) => `/parents/${id}/upload-image`,
   },
 
   // Children
@@ -124,6 +128,7 @@ export const API_ENDPOINTS = {
     SUSPEND: (id: string) => `/users/${id}/suspend`,
     ACTIVATE: (id: string) => `/users/${id}/activate`,
     UPDATE_PROFILE: '/users/profile',
+    CHANGE_PASSWORD: '/users/change-password',
   },
 
   // QR Codes
@@ -131,6 +136,41 @@ export const API_ENDPOINTS = {
     GENERATE: '/qr/generate',
     VALIDATE: '/qr/validate',
     SCAN: '/qr/scan',
+  },
+
+  // Sessions
+  SESSIONS: {
+    LIST: '/sessions',
+    CREATE: '/sessions',
+    GET: (id: string) => `/sessions/${id}`,
+    UPDATE: (id: string) => `/sessions/${id}`,
+    DELETE: (id: string) => `/sessions/${id}`,
+  },
+
+  // Session Bookings
+  SESSION_BOOKINGS: {
+    LIST_BY_SESSION: (sessionId: string) => `/sessions/${sessionId}/bookings`,
+    BOOK: (sessionId: string) => `/sessions/${sessionId}/book`,
+    GET: (bookingId: string) => `/bookings/${bookingId}`,
+    CANCEL: (bookingId: string) => `/bookings/${bookingId}`,
+    LIST_BY_CHILD: (childId: string) => `/children/${childId}/bookings`,
+  },
+
+  // Teachers
+  TEACHERS: {
+    GROUPS: '/teachers/groups',
+    CHILDREN: '/teachers/children',
+    CHECKINS: '/teachers/checkins',
+    DASHBOARD: '/teachers/dashboard',
+  },
+
+  // Teens
+  TEENS: {
+    PROFILE: '/teens/profile',
+    ATTENDANCE: '/teens/attendance',
+    SUBMIT_ATTENDANCE: '/teens/attendance/submit',
+    STATS: '/teens/stats',
+    DASHBOARD: '/teens/dashboard',
   },
 };
 

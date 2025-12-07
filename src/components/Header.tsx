@@ -39,15 +39,87 @@ export function Header() {
   }, [user]);
 
   const loadNotifications = async () => {
-    if (!user) return;
+    if (!user?.id) return;
     try {
       setLoading(true);
-      const data = await notificationsApi.list();
-      setNotifications(data);
+      // Pass user_id to get notifications for this specific user
+      const data = await notificationsApi.list({ user_id: user.id });
+      
+      // Map backend response to frontend format
+      const mapped = (data || []).map((n: any) => {
+        // Extract timestamp - handle various formats
+        let timestamp = n.timestamp || n.createdAt || n.created_at;
+        if (!timestamp) {
+          timestamp = new Date().toISOString();
+        } else if (typeof timestamp === 'string') {
+          // Ensure it's a valid ISO string
+          const date = new Date(timestamp);
+          if (isNaN(date.getTime())) {
+            // If invalid, use current time
+            timestamp = new Date().toISOString();
+          } else {
+            timestamp = date.toISOString();
+          }
+        }
+        
+        return {
+          id: n.id || n.notification_id,
+          type: n.type?.toLowerCase() || 'reminder',
+          title: n.title || n.content?.split('\n')[0] || 'Notification',
+          message: n.message || n.content || '',
+          childId: n.childId || n.child_id,
+          childName: n.childName,
+          timestamp: timestamp,
+          read: n.read || false,
+          actionRequired: n.actionRequired || (n.type?.toLowerCase() === 'checkout' || n.type?.toLowerCase() === 'pickup'),
+        };
+      });
+      
+      setNotifications(mapped);
     } catch (error) {
       console.error('Failed to load notifications:', error);
+      setNotifications([]);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const formatTime = (timestamp: string | Date) => {
+    if (!timestamp) return 'Recently';
+    
+    let date: Date;
+    if (timestamp instanceof Date) {
+      date = timestamp;
+    } else if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+      if (isNaN(date.getTime())) {
+        date = new Date(timestamp.replace(' ', 'T'));
+      }
+      if (isNaN(date.getTime())) {
+        return 'Recently';
+      }
+    } else {
+      return 'Recently';
+    }
+    
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    
+    if (diffMs < 0) return 'Just now';
+    
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    try {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch (e) {
+      return 'Recently';
     }
   };
 
@@ -157,7 +229,9 @@ export function Header() {
                                 onClick={() => {
                                   if (!notification.read) markAsRead(notification.id);
                                   if (notification.type === 'pickup' && notification.actionRequired) {
-                                    navigate('/notifications');
+                                    // Navigate based on user role
+                                    const notificationsPath = user?.role === 'parent' ? '/parent/notifications' : '/notifications';
+                                    navigate(notificationsPath);
                                   }
                                 }}
                                 className={`p-4 cursor-pointer hover:bg-muted transition-colors ${
@@ -183,7 +257,7 @@ export function Header() {
                                       </p>
                                     )}
                                     <p className="text-xs text-muted-foreground mt-1">
-                                      {new Date(notification.timestamp).toLocaleDateString()}
+                                      {formatTime(notification.timestamp)}
                                     </p>
                                   </div>
                                 </div>
@@ -197,7 +271,9 @@ export function Header() {
                         <div className="p-2 border-t border-border">
                           <button
                             onClick={() => {
-                              navigate('/notifications');
+                              // Navigate based on user role
+                              const notificationsPath = user?.role === 'parent' ? '/parent/notifications' : '/notifications';
+                              navigate(notificationsPath);
                               setShowNotifications(false);
                             }}
                             className="w-full text-sm text-center text-foreground hover:bg-muted py-2 rounded"

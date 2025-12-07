@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plantuml>
+@startuml R-KIDS Ministry System Architecture
+
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam componentStyle rectangle
+
+title R-KIDS Ministry Management System - Complete Architecture
+
+package "Frontend (React + TypeScript)" {
+  [Auth Context] as AuthCtx
+  [Protected Routes] as Protected
+  
+  package "Pages" {
+    [Admin Pages] as AdminPages
+    [Teacher Pages] as TeacherPages
+    [Parent Pages] as ParentPages
+    [Teen Pages] as TeenPages
+    [Auth Pages] as AuthPages
+  }
+  
+  package "Services" {
+    [API Service] as APIService
+    [Auth API] as AuthAPI
+    [Parents API] as ParentsAPI
+    [Children API] as ChildrenAPI
+    [Guardians API] as GuardiansAPI
+    [CheckIn API] as CheckInAPI
+    [CheckOut API] as CheckOutAPI
+    [Attendance API] as AttendanceAPI
+    [Notifications API] as NotificationsAPI
+    [Groups API] as GroupsAPI
+    [Users API] as UsersAPI
+    [Analytics API] as AnalyticsAPI
+    [Audit API] as AuditAPI
+    [Reports API] as ReportsAPI
+    [Sessions API] as SessionsAPI
+    [Teachers API] as TeachersAPI
+    [Teens API] as TeensAPI
+  }
+  
+  package "Components" {
+    [UI Components] as UIComponents
+    [QR Scanner] as QRScanner
+    [Sidebars] as Sidebars
+  }
+}
+
+package "Backend (Flask + Python)" {
+  [Flask App] as FlaskApp
+  [CORS Middleware] as CORS
+  
+  package "Routes (17 Blueprints)" {
+    [Auth Routes] as AuthRoutes
+    [Health Routes] as HealthRoutes
+    [Parents Routes] as ParentsRoutes
+    [Children Routes] as ChildrenRoutes
+    [CheckIn Routes] as CheckInRoutes
+    [CheckOut Routes] as CheckOutRoutes
+    [Guardians Routes] as GuardiansRoutes
+    [Notifications Routes] as NotificationsRoutes
+    [Attendance Routes] as AttendanceRoutes
+    [Groups Routes] as GroupsRoutes
+    [Users Routes] as UsersRoutes
+    [Analytics Routes] as AnalyticsRoutes
+    [Audit Routes] as AuditRoutes
+    [Teachers Routes] as TeachersRoutes
+    [Teens Routes] as TeensRoutes
+    [Sessions Routes] as SessionsRoutes
+    [Reports Routes] as ReportsRoutes
+  }
+  
+  [Supabase Client] as SupabaseClient
+  [Config] as Config
+}
+
+package "Database (Supabase PostgreSQL)" {
+  database "Core Tables" {
+    [churches] as Churches
+    [users] as Users
+    [groups] as Groups
+    [guardians] as Guardians
+    [children] as Children
+    [child_guardians] as ChildGuardians
+  }
+  
+  database "Operations Tables" {
+    [check_in_records] as CheckInRecords
+    [attendance_summary] as AttendanceSummary
+    [notifications] as Notifications
+    [audit_logs] as AuditLogs
+  }
+}
+
+' Frontend connections
+AuthCtx --> Protected
+Protected --> AdminPages
+Protected --> TeacherPages
+Protected --> ParentPages
+Protected --> TeenPages
+AuthPages --> AuthCtx
+
+AdminPages --> APIService
+TeacherPages --> APIService
+ParentPages --> APIService
+TeenPages --> APIService
+AuthPages --> AuthAPI
+
+APIService --> AuthAPI
+APIService --> ParentsAPI
+APIService --> ChildrenAPI
+APIService --> GuardiansAPI
+APIService --> CheckInAPI
+APIService --> CheckOutAPI
+APIService --> AttendanceAPI
+APIService --> NotificationsAPI
+APIService --> GroupsAPI
+APIService --> UsersAPI
+APIService --> AnalyticsAPI
+APIService --> AuditAPI
+APIService --> ReportsAPI
+APIService --> SessionsAPI
+APIService --> TeachersAPI
+APIService --> TeensAPI
+
+UIComponents --> AdminPages
+UIComponents --> TeacherPages
+UIComponents --> ParentPages
+QRScanner --> TeacherPages
+Sidebars --> AdminPages
+Sidebars --> TeacherPages
+Sidebars --> ParentPages
+Sidebars --> TeenPages
+
+' Frontend to Backend
+AuthAPI --> AuthRoutes : POST /api/auth/*
+ParentsAPI --> ParentsRoutes : /api/parents/*
+ChildrenAPI --> ChildrenRoutes : GET/POST/PUT/DELETE /api/children/*
+GuardiansAPI --> GuardiansRoutes : /api/guardians/*
+CheckInAPI --> CheckInRoutes : POST /api/checkin/*
+CheckOutAPI --> CheckOutRoutes : POST /api/checkout/*
+AttendanceAPI --> AttendanceRoutes : /api/attendance/*
+NotificationsAPI --> NotificationsRoutes : /api/notifications/*
+GroupsAPI --> GroupsRoutes : /api/groups/*
+UsersAPI --> UsersRoutes : /api/users/*
+AnalyticsAPI --> AnalyticsRoutes : /api/analytics/*
+AuditAPI --> AuditRoutes : /api/audit/*
+ReportsAPI --> ReportsRoutes : /api/reports/*
+SessionsAPI --> SessionsRoutes : /api/sessions/*
+TeachersAPI --> TeachersRoutes : /api/teachers/*
+TeensAPI --> TeensRoutes : /api/teens/*
+
+' Backend structure
+FlaskApp --> CORS
+FlaskApp --> AuthRoutes
+FlaskApp --> HealthRoutes
+FlaskApp --> ParentsRoutes
+FlaskApp --> ChildrenRoutes
+FlaskApp --> CheckInRoutes
+FlaskApp --> CheckOutRoutes
+FlaskApp --> GuardiansRoutes
+FlaskApp --> NotificationsRoutes
+FlaskApp --> AttendanceRoutes
+FlaskApp --> GroupsRoutes
+FlaskApp --> UsersRoutes
+FlaskApp --> AnalyticsRoutes
+FlaskApp --> AuditRoutes
+FlaskApp --> TeachersRoutes
+FlaskApp --> TeensRoutes
+FlaskApp --> SessionsRoutes
+FlaskApp --> ReportsRoutes
+
+AuthRoutes --> SupabaseClient
+ParentsRoutes --> SupabaseClient
+ChildrenRoutes --> SupabaseClient
+CheckInRoutes --> SupabaseClient
+CheckOutRoutes --> SupabaseClient
+GuardiansRoutes --> SupabaseClient
+NotificationsRoutes --> SupabaseClient
+AttendanceRoutes --> SupabaseClient
+GroupsRoutes --> SupabaseClient
+UsersRoutes --> SupabaseClient
+AnalyticsRoutes --> SupabaseClient
+AuditRoutes --> SupabaseClient
+TeachersRoutes --> SupabaseClient
+TeensRoutes --> SupabaseClient
+SessionsRoutes --> SupabaseClient
+ReportsRoutes --> SupabaseClient
+
+SupabaseClient --> Config
+
+' Backend to Database
+SupabaseClient --> Churches
+SupabaseClient --> Users
+SupabaseClient --> Groups
+SupabaseClient --> Guardians
+SupabaseClient --> Children
+SupabaseClient --> ChildGuardians
+SupabaseClient --> CheckInRecords
+SupabaseClient --> AttendanceSummary
+SupabaseClient --> Notifications
+SupabaseClient --> AuditLogs
+
+' Database relationships
+Churches ||--o{ Users : "church_id"
+Churches ||--o{ Groups : "church_id"
+Churches ||--o{ Guardians : "church_id"
+Churches ||--o{ Children : "church_id"
+Churches ||--o{ CheckInRecords : "church_id"
+Churches ||--o{ AttendanceSummary : "church_id"
+Churches ||--o{ Notifications : "church_id"
+Churches ||--o{ AuditLogs : "church_id"
+
+Users ||--o{ Groups : "teacher_id"
+Guardians ||--o{ Children : "parent_id"
+Children ||--o{ ChildGuardians : "child_id"
+Children ||--o{ CheckInRecords : "child_id"
+Groups ||--o{ Children : "group_id"
+Groups ||--o{ AttendanceSummary : "group_id"
+Children ||--o{ Notifications : "child_id"
+Guardians ||--o{ Notifications : "guardian_id"
+
+note right of AuthRoutes
+  **Authentication Endpoints:**
+  - POST /api/auth/login
+  - POST /api/auth/verify-mfa
+  - POST /api/auth/logout
+end note
+
+note right of ChildrenRoutes
+  **Children Endpoints:**
+  - GET /api/children (with filters)
+  - POST /api/children (auto-assigns group)
+  - GET /api/children/pending
+  - POST /api/children/:id/approve
+  - POST /api/children/:id/reject
+end note
+
+note right of CheckInRoutes
+  **Check-In Endpoints:**
+  - POST /api/checkin/generate-qr
+  - POST /api/checkin/scan-qr
+  - POST /api/checkin/manual
+  - POST /api/checkin/verify-otp
+  - GET /api/checkin/status/:id
+end note
+
+note right of CheckOutRoutes
+  **Check-Out Endpoints:**
+  - POST /api/checkout/notify/:id
+  - POST /api/checkout/verify
+  - POST /api/checkout/release/:id
+end note
+
+note right of TeachersRoutes
+  **Teacher-Specific:**
+  - GET /api/teachers/groups
+  - GET /api/teachers/children
+  - GET /api/teachers/checkins
+  - GET /api/teachers/dashboard
+end note
+
+note right of TeensRoutes
+  **Teen-Specific:**
+  - GET /api/teens/profile
+  - GET /api/teens/attendance
+  - GET /api/teens/stats
+  - GET /api/teens/dashboard
+end note
+
+note right of SessionsRoutes
+  **Sessions Endpoints:**
+  - GET /api/sessions (list)
+  - POST /api/sessions (create)
+  - GET /api/sessions/:id
+  - PUT /api/sessions/:id
+  - DELETE /api/sessions/:id
+end note
+
+note right of ReportsRoutes
+  **Reports Endpoints:**
+  - GET /api/reports/attendance
+  - GET /api/reports/export
+end note
+
+legend right
+  |<#FFE6E6> **User Roles** |
+  | Admin: Full system access |
+  | Teacher: Check-in/out, attendance |
+  | Parent: Child management, notifications |
+  | Teen: Self-service attendance |
+  
+  |<#E6F3FF> **Key Features** |
+  | Auto-group assignment by age |
+  | QR code check-in/out |
+  | MFA authentication |
+  | Real-time notifications |
+  | Comprehensive audit logging |
+endlegend
+
+@enduml
+</plantuml>
+

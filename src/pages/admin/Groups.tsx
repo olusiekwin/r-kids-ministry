@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
 import { AdminSidebar } from '@/components/AdminSidebar';
-import { childrenApi, groupsApi } from '@/services/api';
+import { childrenApi, groupsApi, usersApi } from '@/services/api';
 import { Child, GroupName, User } from '@/types';
 
 interface GroupWithTeacher {
@@ -14,6 +14,7 @@ interface GroupWithTeacher {
   room: string;
   teacherId?: string;
   teacherName?: string;
+  groupId?: string; // Store group ID for updates
 }
 
 export default function Groups() {
@@ -39,19 +40,10 @@ export default function Groups() {
 
   const loadTeachers = async () => {
     try {
-      // Fetch teachers from API
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/users?role=teacher`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setTeachers(data.data || data || []);
-      }
+      const teachersList = await usersApi.listByRole('teacher');
+      setTeachers(teachersList);
     } catch (error) {
       console.error('Failed to load teachers:', error);
-      // Fallback empty array
       setTeachers([]);
     }
   };
@@ -59,8 +51,10 @@ export default function Groups() {
   const loadGroups = async () => {
     try {
       setLoading(true);
-      const groupList = await groupsApi.list();
-      const groupsData = groupList as GroupName[];
+      // Use groupsApi to get full group objects with teacher info
+      const groupsWithDetails = await groupsApi.list();
+      const groupsData = groupsWithDetails.map((g: any) => g.name) as GroupName[];
+      
       setGroups(groupsData);
       
       if (groupsData.length > 0) {
@@ -69,49 +63,35 @@ export default function Groups() {
 
       // Load stats for each group with teacher info
       const statsPromises = groupsData.map(async (group) => {
+        // Find group details from API response
+        const groupDetails = groupsWithDetails.find((g: any) => g.name === group);
         const children = await childrenApi.list({ group });
-        // Fetch group details including teacher
-        try {
-          const groupDetailsResponse = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/groups?name=${encodeURIComponent(group)}`, {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-            },
-          });
-          let teacherId, teacherName;
-          if (groupDetailsResponse.ok) {
-            const groupData = await groupDetailsResponse.json();
-            teacherId = groupData.data?.teacher_id || groupData.teacher_id;
-            if (teacherId && teachers.length > 0) {
-              const teacher = teachers.find(t => t.id === teacherId);
-              teacherName = teacher?.name;
-            }
-          }
-          return {
-            name: group,
-            count: children.length,
-            ageRange: group === 'Little Angels' ? '3-5' : 
-                      group === 'Saints' ? '6-9' : 
-                      group === 'Disciples' ? '10-12' : '13-19',
-            schedule: 'Sundays 9:30 AM',
-            room: group === 'Little Angels' ? 'Room 101' : 
-                  group === 'Saints' ? 'Room 102' : 
-                  group === 'Disciples' ? 'Room 201' : 'Room 205',
-            teacherId,
-            teacherName,
-          };
-        } catch (error) {
-          return {
-    name: group,
-            count: children.length,
-    ageRange: group === 'Little Angels' ? '3-5' : 
-              group === 'Saints' ? '6-9' : 
-                      group === 'Disciples' ? '10-12' : '13-19',
-    schedule: 'Sundays 9:30 AM',
-    room: group === 'Little Angels' ? 'Room 101' : 
-          group === 'Saints' ? 'Room 102' : 
-          group === 'Disciples' ? 'Room 201' : 'Room 205',
-          };
+        
+        // Get teacher info from group details or teachers list
+        let teacherId = groupDetails?.teacherId;
+        let teacherName = groupDetails?.teacherName;
+        if (teacherId && teachers.length > 0 && !teacherName) {
+          const teacher = teachers.find(t => t.id === teacherId);
+          teacherName = teacher?.name;
         }
+        
+        return {
+          name: group,
+          count: children.length,
+          ageRange: groupDetails 
+            ? `${groupDetails.ageRangeMin}-${groupDetails.ageRangeMax}`
+            : (group === 'Little Angels' ? '3-5' : 
+               group === 'Saints' ? '6-9' : 
+               group === 'Disciples' ? '10-12' : '13-19'),
+          schedule: groupDetails?.schedule || 'Sundays 9:30 AM',
+          room: groupDetails?.room || 
+                (group === 'Little Angels' ? 'Room 101' : 
+                 group === 'Saints' ? 'Room 102' : 
+                 group === 'Disciples' ? 'Room 201' : 'Room 205'),
+          teacherId,
+          teacherName,
+          groupId: groupDetails?.id, // Store group ID for updates
+        };
       });
 
       const stats = await Promise.all(statsPromises);
@@ -127,31 +107,25 @@ export default function Groups() {
   const assignTeacher = async (groupName: GroupName, teacherId: string | null) => {
     try {
       setAssigningTeacher(groupName);
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/groups/${encodeURIComponent(groupName)}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-        body: JSON.stringify({ teacher_id: teacherId || null }),
-      });
-      
-      if (response.ok) {
-        // Update local state immediately
-        setGroupStats(prev => prev.map(stat => 
-          stat.name === groupName 
-            ? { ...stat, teacherId: teacherId || undefined, teacherName: teacherId ? teachers.find(t => t.id === teacherId)?.name : undefined }
-            : stat
-        ));
-        // Optionally reload groups
-        // await loadGroups();
+      // Find group ID from groupStats
+      const groupStat = groupStats.find(s => s.name === groupName);
+      if (!groupStat || !groupStat.groupId) {
+        // If not found, fetch groups to get ID
+        const groupsList = await groupsApi.list();
+        const groupDetails = groupsList.find((g: any) => g.name === groupName);
+        if (!groupDetails || !groupDetails.id) {
+          throw new Error('Group not found');
+        }
+        await groupsApi.update(groupDetails.id, { teacherId: teacherId || null });
       } else {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to assign teacher' }));
-        alert(errorData.message || 'Failed to assign teacher');
+        await groupsApi.update(groupStat.groupId, { teacherId: teacherId || null });
       }
-    } catch (error) {
+      
+      // Reload groups to get fresh data from backend
+      await loadGroups();
+    } catch (error: any) {
       console.error('Failed to assign teacher:', error);
-      alert('Failed to assign teacher. Please try again.');
+      alert(error?.message || 'Failed to assign teacher. Please try again.');
     } finally {
       setAssigningTeacher(null);
     }
@@ -243,7 +217,6 @@ export default function Groups() {
                         <div className="flex-1">
                           <p className="font-mono text-xs text-muted-foreground">{child.registrationId}</p>
                           <p className="font-semibold">{child.name} ({child.age})</p>
-                          <p className="text-sm text-muted-foreground">Status: {child.status}</p>
                         </div>
                       </div>
                     ))}

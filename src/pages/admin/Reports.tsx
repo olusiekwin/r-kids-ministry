@@ -26,7 +26,9 @@ export default function Reports() {
   const loadGroups = async () => {
     try {
       const data = await groupsApi.list();
-      setGroups(data as GroupName[]);
+      // Extract group names from objects
+      const groupNames = data.map((g: any) => typeof g === 'string' ? g : g.name) as GroupName[];
+      setGroups(groupNames);
     } catch (error) {
       console.error('Failed to load groups:', error);
       setGroups(['Little Angels', 'Saints', 'Disciples', 'Trendsetters']);

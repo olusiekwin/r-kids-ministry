@@ -4,7 +4,7 @@ python-dotenv==1.0.1
 
 # Supabase client for Postgres
 supabase==2.3.4
-httpx[http2]>=0.25.2,<0.28
+httpx[http2]>=0.24.0,<0.26
 httpcore>=1.0.9
 
 

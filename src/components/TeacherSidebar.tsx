@@ -13,9 +13,8 @@ export function TeacherSidebar() {
 
   const menuItems: SidebarItem[] = [
     { label: 'Dashboard', path: '/teacher' },
+    { label: 'Calendar & Sessions', path: '/calendar' },
     { label: 'Check-In', path: '/teacher/checkin' },
-    { label: 'Manual Check-In', path: '/teacher/manual-checkin' },
-    { label: 'Add Child to Group', path: '/teacher/add-child' },
     { label: 'Send Pickup Notification', path: '/teacher/send-pickup' },
     { label: 'Guardian Authorization', path: '/teacher/guardian-authorize' },
   ];
@@ -23,6 +22,9 @@ export function TeacherSidebar() {
   const isActive = (path: string) => {
     if (path === '/teacher') {
       return location.pathname === '/teacher';
+    }
+    if (path === '/calendar') {
+      return location.pathname === '/calendar';
     }
     return location.pathname.startsWith(path);
   };

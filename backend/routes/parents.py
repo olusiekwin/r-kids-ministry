@@ -75,6 +75,7 @@ def list_parents():
 def create_parent():
     """
     Create a new primary guardian (parent) in Supabase `guardians` table.
+    Validates for duplicate email and phone.
     """
     client = get_supabase()
     if client is None:
@@ -93,6 +94,36 @@ def create_parent():
         return jsonify({"error": "Name is required"}), 400
 
     try:
+        # Validate for duplicate email
+        if email:
+            existing_email = (
+                client.table("guardians")
+                .select("guardian_id, name")
+                .eq("church_id", church_id)
+                .eq("email", email)
+                .limit(1)
+                .execute()
+            )
+            if existing_email.data:
+                return jsonify({
+                    "error": f"Email '{email}' is already registered to {existing_email.data[0].get('name', 'another parent')}"
+                }), 400
+
+        # Validate for duplicate phone
+        if phone:
+            existing_phone = (
+                client.table("guardians")
+                .select("guardian_id, name")
+                .eq("church_id", church_id)
+                .eq("phone", phone)
+                .limit(1)
+                .execute()
+            )
+            if existing_phone.data:
+                return jsonify({
+                    "error": f"Phone number '{phone}' is already registered to {existing_phone.data[0].get('name', 'another parent')}"
+                }), 400
+
         # Generate a simple parent code like RS001, RS002...
         count_res = (
             client.table("guardians")
@@ -123,8 +154,10 @@ def create_parent():
         g = created.data[0]
         parent = {
             "id": g["guardian_id"],
+            "parentId": g.get("parent_id", ""),  # Include Parent ID in response
             "name": g.get("name", ""),
             "email": g.get("email") or "",
+            "phone": g.get("phone") or "",
             "status": "active",
             "childrenCount": 0,
         }
@@ -181,6 +214,463 @@ def get_parent(parent_id: str):
     except Exception as exc:  # pragma: no cover
         print(f"⚠️ Error fetching parent from Supabase: {exc}")
         return jsonify({"error": "Failed to fetch parent"}), 500
+
+
+@parents_bp.get("/search")
+def search_parents():
+    """
+    Search parents by Parent ID (e.g., RS073) or name (partial match).
+    Query param: ?q=<parent_id_or_name>
+    Returns: List of matching parents with their children.
+    """
+    client = get_supabase()
+    if client is None:
+        return jsonify({"error": "Supabase not configured"}), 500
+
+    church_id = get_default_church_id()
+    if church_id is None:
+        return jsonify({"error": "No church configured"}), 500
+
+    query = request.args.get("q", "").strip()
+    if not query:
+        return jsonify({"error": "Search query (q) is required"}), 400
+
+    try:
+        guardians = []
+        query_upper = query.upper()
+        
+        # Try exact parent_id match first (e.g., RS073)
+        exact_res = (
+            client.table("guardians")
+            .select("*")
+            .eq("church_id", church_id)
+            .eq("relationship", "Primary")
+            .eq("parent_id", query_upper)
+            .execute()
+        )
+        if exact_res.data:
+            guardians = exact_res.data
+        else:
+            # Try name search (case-insensitive partial match)
+            name_res = (
+                client.table("guardians")
+                .select("*")
+                .eq("church_id", church_id)
+                .eq("relationship", "Primary")
+                .ilike("name", f"%{query}%")
+                .execute()
+            )
+            guardians = name_res.data or []
+
+        if not guardians:
+            return jsonify({"data": []})
+
+        # Get all children for these guardians
+        guardian_ids = [g["guardian_id"] for g in guardians]
+        children_res = (
+            client.table("children")
+            .select("*, groups(name)")
+            .in_("parent_id", guardian_ids)
+            .eq("church_id", church_id)
+            .execute()
+        )
+        children_by_guardian: dict[str, list] = {}
+        for child in children_res.data or []:
+            pid = child.get("parent_id")
+            if pid:
+                if pid not in children_by_guardian:
+                    children_by_guardian[pid] = []
+                group = child.get("groups")
+                children_by_guardian[pid].append({
+                    "id": child.get("child_id"),
+                    "registrationId": child.get("registration_id", ""),
+                    "name": child.get("name", ""),
+                    "dateOfBirth": child.get("date_of_birth"),
+                    "group": group.get("name") if group else None,
+                    "status": "active",  # Could check pending status if needed
+                    "photoUrl": child.get("photo_url"),
+                })
+
+        # Build response with children
+        results = []
+        for g in guardians:
+            gid = g["guardian_id"]
+            results.append({
+                "id": gid,
+                "parentId": g.get("parent_id", ""),
+                "name": g.get("name", ""),
+                "email": g.get("email") or "",
+                "phone": g.get("phone") or "",
+                "status": "active" if not g.get("active_until") else "inactive",
+                "childrenCount": len(children_by_guardian.get(gid, [])),
+                "children": children_by_guardian.get(gid, []),
+            })
+
+        return jsonify({"data": results})
+    except Exception as exc:
+        print(f"⚠️ Error searching parents: {exc}")
+        return jsonify({"error": "Failed to search parents"}), 500
+
+
+@parents_bp.get("/<parent_id>/details")
+def get_parent_details(parent_id: str):
+    """
+    Get complete parent information with all children and registration history.
+    parent_id can be either UUID (guardian_id) or Parent ID (e.g., RS073).
+    """
+    client = get_supabase()
+    if client is None:
+        return jsonify({"error": "Supabase not configured"}), 500
+
+    church_id = get_default_church_id()
+    if church_id is None:
+        return jsonify({"error": "No church configured"}), 500
+
+    try:
+        # Try to find by guardian_id (UUID) first, then by parent_id (RS073)
+        res = (
+            client.table("guardians")
+            .select("*")
+            .eq("church_id", church_id)
+            .eq("guardian_id", parent_id)
+            .limit(1)
+            .execute()
+        )
+        
+        # If not found by UUID, try by parent_id (RS073)
+        if not res.data:
+            res = (
+                client.table("guardians")
+                .select("*")
+                .eq("church_id", church_id)
+                .eq("parent_id", parent_id.upper())
+                .limit(1)
+                .execute()
+            )
+
+        if not res.data:
+            return jsonify({"error": "Parent not found"}), 404
+
+        g = res.data[0]
+        guardian_id = g["guardian_id"]
+
+        # Get all children for this parent
+        # Try with groups join, but fallback to without if it fails
+        try:
+            children_res = (
+                client.table("children")
+                .select("*, groups(name, group_id)")
+                .eq("parent_id", guardian_id)
+                .eq("church_id", church_id)
+                .execute()
+            )
+        except Exception as group_error:
+            print(f"⚠️ Warning: Could not fetch children with groups join: {group_error}")
+            # Fallback: fetch without groups join
+            children_res = (
+                client.table("children")
+                .select("*")
+                .eq("parent_id", guardian_id)
+                .eq("church_id", church_id)
+                .execute()
+            )
+
+        children = []
+        for child in children_res.data or []:
+            group = child.get("groups")
+            children.append({
+                "id": child.get("child_id"),
+                "registrationId": child.get("registration_id", ""),
+                "name": child.get("name", ""),
+                "dateOfBirth": child.get("date_of_birth"),
+                "group": {
+                    "id": group.get("group_id") if group and isinstance(group, dict) else None,
+                    "name": group.get("name") if group and isinstance(group, dict) else None,
+                } if group else None,
+                "gender": child.get("gender"),
+                "status": "active",  # Could check pending status
+                "photoUrl": child.get("photo_url"),
+                "createdAt": child.get("created_at"),
+            })
+
+        # Get recent check-in records (last 10)
+        # Try with joins, but handle gracefully if they fail
+        recent_checkins = []
+        try:
+            checkin_res = (
+                client.table("check_in_records")
+                .select("*, children(name, registration_id), users(name)")
+                .eq("church_id", church_id)
+                .order("timestamp_in", desc=True)
+                .limit(10)
+                .execute()
+            )
+            
+            # Filter by guardian_id manually if the join doesn't work
+            for record in checkin_res.data or []:
+                # Check if this record belongs to this guardian
+                # Note: check_in_records might use child_id instead of guardian_id
+                record_guardian_id = record.get("guardian_id")
+                record_child_id = record.get("child_id")
+                
+                # If guardian_id matches, or if we can verify through child_id
+                if record_guardian_id == guardian_id or (record_child_id and any(c["id"] == record_child_id for c in children)):
+                    child = record.get("children")
+                    teacher = record.get("users")
+                    recent_checkins.append({
+                        "recordId": record.get("record_id"),
+                        "childName": child.get("name") if child and isinstance(child, dict) else "",
+                        "childRegistrationId": child.get("registration_id") if child and isinstance(child, dict) else "",
+                        "timestampIn": record.get("timestamp_in"),
+                        "timestampOut": record.get("timestamp_out"),
+                        "method": record.get("method"),
+                        "teacherName": teacher.get("name") if teacher and isinstance(teacher, dict) else "",
+                    })
+        except Exception as checkin_error:
+            print(f"⚠️ Warning: Could not fetch check-in records with joins: {checkin_error}")
+            # Fallback: try simpler query
+            try:
+                checkin_res = (
+                    client.table("check_in_records")
+                    .select("*")
+                    .eq("church_id", church_id)
+                    .order("timestamp_in", desc=True)
+                    .limit(10)
+                    .execute()
+                )
+                
+                # Filter and build manually
+                child_ids = [c["id"] for c in children]
+                for record in checkin_res.data or []:
+                    if record.get("child_id") in child_ids:
+                        recent_checkins.append({
+                            "recordId": record.get("record_id"),
+                            "childName": "",  # Will need to look up separately if needed
+                            "childRegistrationId": "",
+                            "timestampIn": record.get("timestamp_in"),
+                            "timestampOut": record.get("timestamp_out"),
+                            "method": record.get("method"),
+                            "teacherName": "",
+                        })
+            except Exception as simple_checkin_error:
+                print(f"⚠️ Warning: Could not fetch check-in records at all: {simple_checkin_error}")
+                recent_checkins = []
+
+        parent = {
+            "id": guardian_id,
+            "parentId": g.get("parent_id", ""),
+            "name": g.get("name", ""),
+            "email": g.get("email") or "",
+            "phone": g.get("phone") or "",
+            "photoUrl": g.get("photo_url"),
+            "status": "active" if not g.get("active_until") else "inactive",
+            "activeUntil": g.get("active_until"),
+            "createdAt": g.get("created_at"),
+            "childrenCount": len(children),
+            "children": children,
+            "recentCheckIns": recent_checkins,
+        }
+
+        return jsonify({"data": parent})
+    except Exception as exc:
+        print(f"⚠️ Error fetching parent details: {exc}")
+        return jsonify({"error": "Failed to fetch parent details"}), 500
+
+
+
+
+@parents_bp.patch("/<parent_id>")
+def update_parent(parent_id: str):
+    """
+    Update parent information. Supports updating name, email, phone, photo_url, and status.
+    """
+    client = get_supabase()
+    if client is None:
+        return jsonify({"error": "Supabase not configured"}), 500
+
+    church_id = get_default_church_id()
+    if church_id is None:
+        return jsonify({"error": "No church configured"}), 500
+
+    data = request.get_json() or {}
+    
+    # Validate parent exists
+    try:
+        res = (
+            client.table("guardians")
+            .select("guardian_id")
+            .eq("church_id", church_id)
+            .eq("guardian_id", parent_id)
+            .limit(1)
+            .execute()
+        )
+        if not res.data:
+            return jsonify({"error": "Parent not found"}), 404
+    except Exception as exc:
+        print(f"⚠️ Error checking parent existence: {exc}")
+        return jsonify({"error": "Failed to verify parent"}), 500
+
+    # Build update payload (only include provided fields)
+    update_data = {}
+    if "name" in data:
+        name = str(data["name"]).strip()
+        if name:
+            update_data["name"] = name
+        else:
+            return jsonify({"error": "Name cannot be empty"}), 400
+    
+    if "email" in data:
+        email = (data["email"] or "").strip() or None
+        # Validate for duplicate email (excluding current parent)
+        if email:
+            existing_email = (
+                client.table("guardians")
+                .select("guardian_id, name")
+                .eq("church_id", church_id)
+                .eq("email", email)
+                .neq("guardian_id", parent_id)  # Exclude current parent
+                .limit(1)
+                .execute()
+            )
+            if existing_email.data:
+                return jsonify({
+                    "error": f"Email '{email}' is already registered to {existing_email.data[0].get('name', 'another parent')}"
+                }), 400
+        update_data["email"] = email
+    
+    if "phone" in data:
+        phone = (data["phone"] or "").strip() or None
+        # Validate for duplicate phone (excluding current parent)
+        if phone:
+            existing_phone = (
+                client.table("guardians")
+                .select("guardian_id, name")
+                .eq("church_id", church_id)
+                .eq("phone", phone)
+                .neq("guardian_id", parent_id)  # Exclude current parent
+                .limit(1)
+                .execute()
+            )
+            if existing_phone.data:
+                return jsonify({
+                    "error": f"Phone number '{phone}' is already registered to {existing_phone.data[0].get('name', 'another parent')}"
+                }), 400
+        update_data["phone"] = phone
+    
+    if "photo_url" in data:
+        photo_url = (data["photo_url"] or "").strip() or None
+        # Validate URL format if provided
+        if photo_url and not (photo_url.startswith("http://") or photo_url.startswith("https://")):
+            return jsonify({"error": "Invalid photo URL format"}), 400
+        update_data["photo_url"] = photo_url
+    
+    if "photoUrl" in data:  # Support camelCase
+        photo_url = (data["photoUrl"] or "").strip() or None
+        if photo_url and not (photo_url.startswith("http://") or photo_url.startswith("https://")):
+            return jsonify({"error": "Invalid photo URL format"}), 400
+        update_data["photo_url"] = photo_url
+    
+    if "status" in data:
+        status = data["status"]
+        if status == "inactive":
+            # Set active_until to now if deactivating
+            from datetime import datetime, timezone
+            update_data["active_until"] = datetime.now(timezone.utc).isoformat()
+        elif status == "active":
+            update_data["active_until"] = None
+
+    if not update_data:
+        return jsonify({"error": "No fields to update"}), 400
+
+    try:
+        updated = (
+            client.table("guardians")
+            .update(update_data)
+            .eq("guardian_id", parent_id)
+            .eq("church_id", church_id)
+            .execute()
+        )
+        
+        if not updated.data:
+            return jsonify({"error": "Failed to update parent"}), 500
+
+        g = updated.data[0]
+        parent = {
+            "id": g["guardian_id"],
+            "parentId": g.get("parent_id", ""),
+            "name": g.get("name", ""),
+            "email": g.get("email") or "",
+            "phone": g.get("phone") or "",
+            "photoUrl": g.get("photo_url"),
+            "status": "active" if not g.get("active_until") else "inactive",
+        }
+        return jsonify({"data": parent})
+    except Exception as exc:
+        print(f"⚠️ Error updating parent in Supabase: {exc}")
+        return jsonify({"error": "Failed to update parent"}), 500
+
+
+@parents_bp.post("/<parent_id>/upload-image")
+def upload_parent_image(parent_id: str):
+    """
+    Upload parent image. Currently accepts image URL (can be extended to handle file uploads).
+    For production, this should upload to S3 or similar storage and return the URL.
+    """
+    client = get_supabase()
+    if client is None:
+        return jsonify({"error": "Supabase not configured"}), 500
+
+    church_id = get_default_church_id()
+    if church_id is None:
+        return jsonify({"error": "No church configured"}), 500
+
+    data = request.get_json() or {}
+    image_url = (data.get("image_url") or data.get("imageUrl") or "").strip()
+
+    if not image_url:
+        return jsonify({"error": "Image URL is required"}), 400
+
+    # Validate URL format
+    if not (image_url.startswith("http://") or image_url.startswith("https://")):
+        return jsonify({"error": "Invalid image URL format"}), 400
+
+    # Validate parent exists
+    try:
+        res = (
+            client.table("guardians")
+            .select("guardian_id")
+            .eq("church_id", church_id)
+            .eq("guardian_id", parent_id)
+            .limit(1)
+            .execute()
+        )
+        if not res.data:
+            return jsonify({"error": "Parent not found"}), 404
+    except Exception as exc:
+        print(f"⚠️ Error checking parent existence: {exc}")
+        return jsonify({"error": "Failed to verify parent"}), 500
+
+    try:
+        updated = (
+            client.table("guardians")
+            .update({"photo_url": image_url})
+            .eq("guardian_id", parent_id)
+            .eq("church_id", church_id)
+            .execute()
+        )
+        
+        if not updated.data:
+            return jsonify({"error": "Failed to update parent image"}), 500
+
+        return jsonify({
+            "data": {
+                "photo_url": image_url,
+                "message": "Image uploaded successfully"
+            }
+        })
+    except Exception as exc:
+        print(f"⚠️ Error uploading parent image: {exc}")
+        return jsonify({"error": "Failed to upload image"}), 500
 
 
 @parents_bp.delete("/<parent_id>")

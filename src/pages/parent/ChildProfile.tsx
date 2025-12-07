@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
+import { ParentSidebar } from '@/components/ParentSidebar';
 import { PhotoPlaceholder } from '@/components/PhotoPlaceholder';
 import { childrenApi } from '@/services/api';
 import { Child } from '@/types';
@@ -46,7 +47,8 @@ export default function ChildProfile() {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="container py-6">
+        <ParentSidebar />
+        <main className="md:ml-64 container py-6 px-4 md:px-6 lg:px-8">
           <p className="text-destructive">Child not found</p>
           <button onClick={() => navigate('/parent')} className="btn-secondary mt-4">
             Back to Dashboard
@@ -59,8 +61,9 @@ export default function ChildProfile() {
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
+      <ParentSidebar />
       
-      <main className="container py-8">
+      <main className="md:ml-64 container py-8 px-4 md:px-6 lg:px-8">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold mb-2">Child Profile</h1>
           <p className="text-muted-foreground">View child details and guardians</p>

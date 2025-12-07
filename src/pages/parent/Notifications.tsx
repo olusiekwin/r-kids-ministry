@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
+import { ParentSidebar } from '@/components/ParentSidebar';
 import { QRCodeGenerator } from '@/components/QRCodeGenerator';
 import { QRCodeScanner } from '@/components/QRCodeScanner';
 import { Bell, CheckCircle2, Clock, X } from 'lucide-react';
 import { notificationsApi } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Notification {
   id: string;
@@ -23,6 +25,7 @@ interface Notification {
 
 export default function Notifications() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
@@ -32,13 +35,47 @@ export default function Notifications() {
 
   useEffect(() => {
     loadNotifications();
-  }, []);
+  }, [user]);
 
   const loadNotifications = async () => {
+    if (!user?.id) return;
+    
     try {
       setLoading(true);
-      const data = await notificationsApi.list();
-      setNotifications(data);
+      // Pass user_id to get notifications for this specific user
+      const data = await notificationsApi.list({ user_id: user.id });
+      // Map backend response to frontend format
+      const mapped = data.map((n: any) => {
+        // Extract timestamp - handle various formats
+        let timestamp = n.timestamp || n.createdAt || n.created_at;
+        if (!timestamp) {
+          timestamp = new Date().toISOString();
+        } else if (typeof timestamp === 'string') {
+          // Ensure it's a valid ISO string
+          const date = new Date(timestamp);
+          if (isNaN(date.getTime())) {
+            // If invalid, use current time
+            timestamp = new Date().toISOString();
+          } else {
+            timestamp = date.toISOString();
+          }
+        }
+        
+        return {
+          id: n.id || n.notification_id,
+          type: n.type?.toLowerCase() || 'reminder',
+          title: n.title || n.content?.split('\n')[0] || 'Notification',
+          message: n.message || n.content || '',
+          childId: n.childId || n.child_id,
+          childName: n.childName,
+          timestamp: timestamp,
+          read: n.read || false,
+          actionRequired: n.actionRequired || (n.type?.toLowerCase() === 'checkout' || n.type?.toLowerCase() === 'pickup'),
+          pickupQR: n.pickupQR,
+          pickupOTP: n.pickupOTP,
+        };
+      });
+      setNotifications(mapped);
     } catch (error) {
       console.error('Failed to load notifications:', error);
       setNotifications([]);
@@ -95,10 +132,51 @@ export default function Notifications() {
     }
   };
 
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
+  const formatTime = (timestamp: string | Date) => {
+    if (!timestamp) return 'Just now';
+    
+    // Handle various date formats
+    let date: Date;
+    
+    // If already a Date object
+    if (timestamp instanceof Date) {
+      date = timestamp;
+    } else if (typeof timestamp === 'string') {
+      // Try parsing the string
+      date = new Date(timestamp);
+      
+      // If invalid, try common formats
+      if (isNaN(date.getTime())) {
+        // Try replacing space with T for ISO format
+        date = new Date(timestamp.replace(' ', 'T'));
+      }
+      
+      // If still invalid, try other formats
+      if (isNaN(date.getTime())) {
+        // Try parsing as timestamp (milliseconds)
+        const numTimestamp = parseInt(timestamp, 10);
+        if (!isNaN(numTimestamp)) {
+          date = new Date(numTimestamp);
+        }
+      }
+      
+      // If still invalid, return fallback
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid timestamp format:', timestamp);
+        return 'Recently';
+      }
+    } else {
+      return 'Recently';
+    }
+    
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
+    
+    // Handle future dates
+    if (diffMs < 0) {
+      return 'Just now';
+    }
+    
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
@@ -107,7 +185,17 @@ export default function Notifications() {
     if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
     if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
     if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-    return date.toLocaleDateString();
+    
+    // For older dates, show formatted date
+    try {
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined 
+      });
+    } catch (e) {
+      return 'Recently';
+    }
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -116,8 +204,9 @@ export default function Notifications() {
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
+      <ParentSidebar />
       
-      <main className="container py-8">
+      <main className="md:ml-64 container py-8 px-4 md:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-semibold mb-2">Notifications</h1>
@@ -357,4 +446,5 @@ export default function Notifications() {
     </div>
   );
 }
+
 

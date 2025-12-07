@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mermaid>
+graph TB
+    subgraph Frontend["Frontend - React + TypeScript"]
+        AuthCtx[Auth Context]
+        Protected[Protected Routes]
+        
+        subgraph Pages["Pages"]
+            AdminPages[Admin Pages<br/>Dashboard, Users, Reports]
+            TeacherPages[Teacher Pages<br/>Check-In, Attendance]
+            ParentPages[Parent Pages<br/>Children, Notifications]
+            TeenPages[Teen Pages<br/>Dashboard, Attendance]
+            AuthPages[Auth Pages<br/>Login, Set Password]
+        end
+        
+        subgraph Services["Services"]
+            APIService[API Service]
+            AuthAPI[Auth API]
+            ChildrenAPI[Children API]
+            CheckInAPI[CheckIn API]
+            CheckOutAPI[CheckOut API]
+        end
+        
+        subgraph Components["Components"]
+            UIComponents[UI Components]
+            QRScanner[QR Scanner]
+            Sidebars[Sidebars]
+        end
+    end
+    
+    subgraph Backend["Backend - Flask + Python"]
+        FlaskApp[Flask App]
+        CORS[CORS Middleware]
+        
+        subgraph Routes["Routes - 15 Blueprints"]
+            AuthRoutes["/api/auth<br/>login, verify-mfa, logout"]
+            HealthRoutes["/api/health"]
+            ParentsRoutes["/api/parents<br/>CRUD operations"]
+            ChildrenRoutes["/api/children<br/>CRUD, approve, reject"]
+            CheckInRoutes["/api/checkin<br/>generate-qr, scan-qr, manual"]
+            CheckOutRoutes["/api/checkout<br/>notify, verify, release"]
+            GuardiansRoutes["/api/guardians<br/>secondary guardians"]
+            NotificationsRoutes["/api/notifications<br/>list, mark-read"]
+            AttendanceRoutes["/api/attendance<br/>list, submit"]
+            GroupsRoutes["/api/groups<br/>CRUD, stats"]
+            UsersRoutes["/api/users<br/>CRUD, suspend, activate"]
+            AnalyticsRoutes["/api/analytics<br/>group, teacher, admin, child"]
+            AuditRoutes["/api/audit<br/>list, export"]
+            TeachersRoutes["/api/teachers<br/>groups, children, dashboard"]
+            TeensRoutes["/api/teens<br/>profile, attendance, stats"]
+        end
+        
+        SupabaseClient[Supabase Client]
+        Config[Config]
+    end
+    
+    subgraph Database["Database - Supabase PostgreSQL"]
+        subgraph CoreTables["Core Tables"]
+            Churches[churches]
+            Users[users]
+            Groups[groups]
+            Guardians[guardians]
+            Children[children]
+            ChildGuardians[child_guardians]
+        end
+        
+        subgraph OperationsTables["Operations Tables"]
+            CheckInRecords[check_in_records]
+            AttendanceSummary[attendance_summary]
+            Notifications[notifications]
+            AuditLogs[audit_logs]
+        end
+    end
+    
+    %% Frontend connections
+    AuthCtx --> Protected
+    Protected --> AdminPages
+    Protected --> TeacherPages
+    Protected --> ParentPages
+    Protected --> TeenPages
+    AuthPages --> AuthCtx
+    
+    AdminPages --> APIService
+    TeacherPages --> APIService
+    ParentPages --> APIService
+    TeenPages --> APIService
+    AuthPages --> AuthAPI
+    
+    APIService --> AuthAPI
+    APIService --> ChildrenAPI
+    APIService --> CheckInAPI
+    APIService --> CheckOutAPI
+    
+    UIComponents --> AdminPages
+    UIComponents --> TeacherPages
+    UIComponents --> ParentPages
+    QRScanner --> TeacherPages
+    Sidebars --> AdminPages
+    Sidebars --> TeacherPages
+    Sidebars --> ParentPages
+    Sidebars --> TeenPages
+    
+    %% Frontend to Backend
+    AuthAPI --> AuthRoutes
+    ChildrenAPI --> ChildrenRoutes
+    CheckInAPI --> CheckInRoutes
+    CheckOutAPI --> CheckOutRoutes
+    APIService --> ParentsRoutes
+    APIService --> GuardiansRoutes
+    APIService --> NotificationsRoutes
+    APIService --> AttendanceRoutes
+    APIService --> GroupsRoutes
+    APIService --> UsersRoutes
+    APIService --> AnalyticsRoutes
+    APIService --> AuditRoutes
+    APIService --> TeachersRoutes
+    APIService --> TeensRoutes
+    
+    %% Backend structure
+    FlaskApp --> CORS
+    FlaskApp --> AuthRoutes
+    FlaskApp --> HealthRoutes
+    FlaskApp --> ParentsRoutes
+    FlaskApp --> ChildrenRoutes
+    FlaskApp --> CheckInRoutes
+    FlaskApp --> CheckOutRoutes
+    FlaskApp --> GuardiansRoutes
+    FlaskApp --> NotificationsRoutes
+    FlaskApp --> AttendanceRoutes
+    FlaskApp --> GroupsRoutes
+    FlaskApp --> UsersRoutes
+    FlaskApp --> AnalyticsRoutes
+    FlaskApp --> AuditRoutes
+    FlaskApp --> TeachersRoutes
+    FlaskApp --> TeensRoutes
+    
+    AuthRoutes --> SupabaseClient
+    ParentsRoutes --> SupabaseClient
+    ChildrenRoutes --> SupabaseClient
+    CheckInRoutes --> SupabaseClient
+    CheckOutRoutes --> SupabaseClient
+    GuardiansRoutes --> SupabaseClient
+    NotificationsRoutes --> SupabaseClient
+    AttendanceRoutes --> SupabaseClient
+    GroupsRoutes --> SupabaseClient
+    UsersRoutes --> SupabaseClient
+    AnalyticsRoutes --> SupabaseClient
+    AuditRoutes --> SupabaseClient
+    TeachersRoutes --> SupabaseClient
+    TeensRoutes --> SupabaseClient
+    
+    SupabaseClient --> Config
+    
+    %% Backend to Database
+    SupabaseClient --> Churches
+    SupabaseClient --> Users
+    SupabaseClient --> Groups
+    SupabaseClient --> Guardians
+    SupabaseClient --> Children
+    SupabaseClient --> ChildGuardians
+    SupabaseClient --> CheckInRecords
+    SupabaseClient --> AttendanceSummary
+    SupabaseClient --> Notifications
+    SupabaseClient --> AuditLogs
+    
+    %% Database relationships
+    Churches -->|church_id| Users
+    Churches -->|church_id| Groups
+    Churches -->|church_id| Guardians
+    Churches -->|church_id| Children
+    Churches -->|church_id| CheckInRecords
+    Churches -->|church_id| AttendanceSummary
+    Churches -->|church_id| Notifications
+    Churches -->|church_id| AuditLogs
+    
+    Users -->|teacher_id| Groups
+    Guardians -->|parent_id| Children
+    Children -->|child_id| ChildGuardians
+    Children -->|child_id| CheckInRecords
+    Groups -->|group_id| Children
+    Groups -->|group_id| AttendanceSummary
+    Children -->|child_id| Notifications
+    Guardians -->|guardian_id| Notifications
+    
+    classDef frontend fill:#E3F2FD,stroke:#1976D2,stroke-width:2px
+    classDef backend fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px
+    classDef database fill:#E8F5E9,stroke:#388E3C,stroke-width:2px
+    classDef routes fill:#FFF3E0,stroke:#F57C00,stroke-width:2px
+    
+    class AuthCtx,Protected,AdminPages,TeacherPages,ParentPages,TeenPages,AuthPages,APIService,AuthAPI,ChildrenAPI,CheckInAPI,CheckOutAPI,UIComponents,QRScanner,Sidebars frontend
+    class FlaskApp,CORS,SupabaseClient,Config backend
+    class Churches,Users,Groups,Guardians,Children,ChildGuardians,CheckInRecords,AttendanceSummary,Notifications,AuditLogs database
+    class AuthRoutes,HealthRoutes,ParentsRoutes,ChildrenRoutes,CheckInRoutes,CheckOutRoutes,GuardiansRoutes,NotificationsRoutes,AttendanceRoutes,GroupsRoutes,UsersRoutes,AnalyticsRoutes,AuditRoutes,TeachersRoutes,TeensRoutes routes
+</mermaid>
+

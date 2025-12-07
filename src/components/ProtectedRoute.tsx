@@ -8,7 +8,16 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-  const { user, isAuthenticated } = useAuth();
+  let authContext;
+  try {
+    authContext = useAuth();
+  } catch (error) {
+    // If context is not available (e.g., during hot reload), redirect to login
+    console.error('Auth context not available:', error);
+    return <Navigate to="/login" replace />;
+  }
+
+  const { user, isAuthenticated } = authContext;
   const location = useLocation();
 
   // If not authenticated, redirect to login
