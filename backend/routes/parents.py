@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify, request
+from postgrest import desc
 
 from supabase_client import get_supabase, get_default_church_id, get_supabase_error_response
 
@@ -400,6 +401,7 @@ def get_parent_details(parent_id: str):
             checkin_res = (
                 client.table("check_in_records")
                 .select("*, children(name, registration_id), users(name)")
+                .eq("guardian_id", guardian_id)
                 .eq("church_id", church_id)
                 .order("timestamp_in", desc=True)
                 .limit(10)
@@ -433,6 +435,7 @@ def get_parent_details(parent_id: str):
                 checkin_res = (
                     client.table("check_in_records")
                     .select("*")
+                    .eq("guardian_id", guardian_id)
                     .eq("church_id", church_id)
                     .order("timestamp_in", desc=True)
                     .limit(10)
@@ -630,9 +633,12 @@ def upload_parent_image(parent_id: str):
     if not image_url:
         return jsonify({"error": "Image URL is required"}), 400
 
-    # Validate URL format
-    if not (image_url.startswith("http://") or image_url.startswith("https://")):
-        return jsonify({"error": "Invalid image URL format"}), 400
+    # Validate URL format - accept http/https URLs or data URLs (base64)
+    is_http_url = image_url.startswith("http://") or image_url.startswith("https://")
+    is_data_url = image_url.startswith("data:image/")
+    
+    if not (is_http_url or is_data_url):
+        return jsonify({"error": "Invalid image URL format. Must be http/https URL or base64 data URL"}), 400
 
     # Validate parent exists
     try:

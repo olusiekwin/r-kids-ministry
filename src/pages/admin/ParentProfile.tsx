@@ -150,9 +150,11 @@ export default function ParentProfile() {
     
     setActionLoading('status');
     try {
-      // TODO: Implement activate/deactivate API
-      alert('Activate/Deactivate functionality coming soon');
+      const newStatus = parent.status === 'active' ? 'inactive' : 'active';
+      await parentsApi.update(parent.id, { status: newStatus });
+      await loadParentDetails();
       setShowActivateModal(false);
+      alert(`Parent ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
     } catch (error: any) {
       console.error('Status update failed:', error);
       alert(error.message || 'Failed to update parent status');
