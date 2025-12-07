@@ -8,6 +8,7 @@ import { ParentImageModal } from '@/components/ParentImageModal';
 import { parentsApi, checkInApi, checkOutApi } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from '@/components/ui/sonner';
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -107,7 +108,9 @@ export default function ParentProfile() {
   const handleCheckIn = async () => {
     if (!selectedChild || !parent) return;
     if (!user?.id) {
-      alert('User not authenticated. Please login again.');
+      toast.error('Authentication required', {
+        description: 'Please login again to continue.',
+      });
       return;
     }
     
@@ -117,10 +120,14 @@ export default function ParentProfile() {
       await loadParentDetails();
       setShowCheckInModal(false);
       setSelectedChild(null);
-      alert(`${selectedChild.name} checked in successfully!`);
+      toast.success('Check-in successful', {
+        description: `${selectedChild.name} has been checked in.`,
+      });
     } catch (error: any) {
       console.error('Check-in failed:', error);
-      alert(error.message || 'Failed to check in child');
+      toast.error('Check-in failed', {
+        description: error.message || 'Failed to check in child. Please try again.',
+      });
     } finally {
       setActionLoading(null);
     }
@@ -136,10 +143,14 @@ export default function ParentProfile() {
       await loadParentDetails();
       setShowCheckOutModal(false);
       setSelectedChild(null);
-      alert(`${selectedChild.name} checked out successfully!`);
+      toast.success('Check-out successful', {
+        description: `${selectedChild.name} has been checked out.`,
+      });
     } catch (error: any) {
       console.error('Check-out failed:', error);
-      alert(error.message || 'Failed to check out child');
+      toast.error('Check-out failed', {
+        description: error.message || 'Failed to check out child. Please try again.',
+      });
     } finally {
       setActionLoading(null);
     }
@@ -154,10 +165,14 @@ export default function ParentProfile() {
       await parentsApi.update(parent.id, { status: newStatus });
       await loadParentDetails();
       setShowActivateModal(false);
-      alert(`Parent ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully!`);
+      toast.success(`Parent ${newStatus === 'active' ? 'activated' : 'deactivated'}`, {
+        description: `The parent account has been ${newStatus === 'active' ? 'activated' : 'suspended'} successfully.`,
+      });
     } catch (error: any) {
       console.error('Status update failed:', error);
-      alert(error.message || 'Failed to update parent status');
+      toast.error('Status update failed', {
+        description: error.message || 'Failed to update parent status. Please try again.',
+      });
     } finally {
       setActionLoading(null);
     }
@@ -207,17 +222,30 @@ export default function ParentProfile() {
           await parentsApi.uploadImage(parent.id, base64String);
           // Reload parent details to get updated image
           await loadParentDetails();
+          toast.success('Image uploaded', {
+            description: 'Parent image has been updated successfully.',
+          });
         } catch (error: any) {
           console.error('Failed to upload image:', error);
-          alert(error.message || 'Failed to upload image');
+          toast.error('Upload failed', {
+            description: error.message || 'Failed to upload image. Please try again.',
+          });
         } finally {
           setUploadingImage(false);
         }
       };
+      reader.onerror = () => {
+        toast.error('File read error', {
+          description: 'Failed to read the image file. Please try again.',
+        });
+        setUploadingImage(false);
+      };
       reader.readAsDataURL(file);
     } catch (error: any) {
       console.error('Failed to process image:', error);
-      alert(error.message || 'Failed to process image');
+      toast.error('Processing failed', {
+        description: error.message || 'Failed to process image. Please try again.',
+      });
       setUploadingImage(false);
     }
   };
@@ -229,9 +257,14 @@ export default function ParentProfile() {
     try {
       await parentsApi.removeImage(parent.id);
       await loadParentDetails();
+      toast.success('Image removed', {
+        description: 'Parent image has been removed successfully.',
+      });
     } catch (error: any) {
       console.error('Failed to remove image:', error);
-      alert(error.message || 'Failed to remove image');
+      toast.error('Remove failed', {
+        description: error.message || 'Failed to remove image. Please try again.',
+      });
     } finally {
       setUploadingImage(false);
     }

@@ -660,7 +660,7 @@ def upload_parent_image(parent_id: str):
     if not (is_http_url or is_data_url):
         return jsonify({"error": "Invalid image URL format. Must be http/https URL or base64 data URL"}), 400
 
-    # Validate parent exists
+    # Validate parent exists - try by guardian_id (UUID) first, then by parent_id (RS032)
     try:
         res = (
             client.table("guardians")
@@ -670,23 +670,39 @@ def upload_parent_image(parent_id: str):
             .limit(1)
             .execute()
         )
+        
+        # If not found by UUID, try by parent_id (RS032)
+        if not res.data:
+            res = (
+                client.table("guardians")
+                .select("guardian_id")
+                .eq("church_id", church_id)
+                .eq("parent_id", parent_id.upper())
+                .limit(1)
+                .execute()
+            )
+        
         if not res.data:
             return jsonify({"error": "Parent not found"}), 404
+        
+        actual_guardian_id = res.data[0]["guardian_id"]
     except Exception as exc:
         print(f"⚠️ Error checking parent existence: {exc}")
-        return jsonify({"error": "Failed to verify parent"}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Failed to verify parent: {str(exc)}"}), 500
 
     try:
         updated = (
             client.table("guardians")
             .update({"photo_url": image_url})
-            .eq("guardian_id", parent_id)
+            .eq("guardian_id", actual_guardian_id)
             .eq("church_id", church_id)
             .execute()
         )
         
         if not updated.data:
-            return jsonify({"error": "Failed to update parent image"}), 500
+            return jsonify({"error": "Failed to update parent image - no rows updated"}), 500
 
         return jsonify({
             "data": {
@@ -696,7 +712,9 @@ def upload_parent_image(parent_id: str):
         })
     except Exception as exc:
         print(f"⚠️ Error uploading parent image: {exc}")
-        return jsonify({"error": "Failed to upload image"}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Failed to upload image: {str(exc)}"}), 500
 
 
 @parents_bp.delete("/<parent_id>")
