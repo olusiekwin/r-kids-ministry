@@ -4,8 +4,9 @@ services:
     env: python
     region: oregon
     plan: free
-    buildCommand: cd backend && pip install -r requirements.txt
-    startCommand: cd backend && gunicorn --bind 0.0.0.0:$PORT app:app --workers 2 --timeout 120
+    rootDir: backend
+    buildCommand: pip install --upgrade pip && pip install gunicorn==23.0.0 && pip install -r requirements.txt
+    startCommand: python -m gunicorn --bind 0.0.0.0:$PORT wsgi:app --workers 2 --timeout 120
     envVars:
       - key: FLASK_ENV
         value: production
@@ -29,6 +30,6 @@ services:
         sync: false
         optional: true
       - key: FRONTEND_URL
-        value: https://your-frontend-url.onrender.com
+        value: https://r-kids-ministry.vercel.app
     healthCheckPath: /api/health
 

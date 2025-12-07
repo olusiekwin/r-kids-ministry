@@ -1,6 +1,10 @@
 // Backend API Configuration
-
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+// In production, this should be set via VITE_API_BASE_URL environment variable
+// For Vercel: Set VITE_API_BASE_URL=https://r-kids-ministry.onrender.com/api in project settings
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+  (import.meta.env.PROD 
+    ? 'https://r-kids-ministry.onrender.com/api'
+    : 'http://localhost:5000/api');
 
 export const API_ENDPOINTS = {
   // Authentication

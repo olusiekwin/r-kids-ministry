@@ -169,7 +169,7 @@ def parse_data_row(row: List[str]) -> Dict:
 def main():
     """Main function to import parents and children."""
     
-    # Raw data from user
+    # Raw data from user (timestamp column removed)
     raw_data = """Coletta Njeri Mwangangi	coletmwangangi@gmail.com	0728811866	Nathan Mugisha 	2/5/2014
 Coletta Njeri Mwangangi	coletmwangangi@gmail.com	0728811866	Kyle King	6/10/2017
 Coletta Njeri Mwangangi	coletmwangangi@gmail.com	0728811866	Bella McKenna	7/22/2018
