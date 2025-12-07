@@ -5,5 +5,5 @@ gunicorn==23.0.0
 
 # Supabase client for Postgres
 supabase==2.8.4
-httpx==0.27.0
+httpx==0.26.0
 httpcore==1.0.5
