@@ -6,7 +6,7 @@ from environment (see database/README.md for setup).
 """
 
 import os
-from typing import Optional
+from typing import Optional, Tuple
 
 from supabase import Client, create_client
 
@@ -17,6 +17,24 @@ ANON_KEY_ENV = "SUPABASE_ANON_KEY"
 _client: Optional[Client] = None
 
 
+def get_supabase_error_response() -> Tuple[dict, int]:
+    """
+    Get a standardized error response for when Supabase is not configured.
+    Returns (error_dict, status_code) tuple for use in Flask routes.
+    """
+    missing = []
+    if not os.environ.get(SUPABASE_URL_ENV):
+        missing.append(SUPABASE_URL_ENV)
+    if not (os.environ.get(SERVICE_ROLE_ENV) or os.environ.get(ANON_KEY_ENV)):
+        missing.append(f"{SERVICE_ROLE_ENV} or {ANON_KEY_ENV}")
+    
+    return {
+        "error": "Supabase not configured",
+        "message": f"Missing environment variables: {', '.join(missing)}",
+        "instructions": "Please set these environment variables in your Render dashboard: Settings > Environment > Environment Variables"
+    }, 500
+
+
 def init_supabase() -> Optional[Client]:
     """Initialise Supabase client once and reuse."""
     global _client
@@ -25,9 +43,14 @@ def init_supabase() -> Optional[Client]:
     supabase_key = os.environ.get(SERVICE_ROLE_ENV) or os.environ.get(ANON_KEY_ENV)
 
     if not supabase_url or not supabase_key:
+        missing = []
+        if not supabase_url:
+            missing.append(SUPABASE_URL_ENV)
+        if not supabase_key:
+            missing.append(f"{SERVICE_ROLE_ENV} or {ANON_KEY_ENV}")
         print(
-            "⚠️  Supabase not configured. "
-            f"Set {SUPABASE_URL_ENV} and {SERVICE_ROLE_ENV} (or {ANON_KEY_ENV})."
+            f"⚠️  Supabase not configured. Missing: {', '.join(missing)}. "
+            f"Please set these environment variables in Render dashboard."
         )
         return None
 

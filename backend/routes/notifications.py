@@ -4,7 +4,7 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
-from supabase_client import get_supabase, get_default_church_id
+from supabase_client import get_supabase, get_default_church_id, get_supabase_error_response, get_supabase_error_response
 
 notifications_bp = Blueprint("notifications", __name__)
 
@@ -19,7 +19,8 @@ def list_notifications():
 
     client = get_supabase()
     if client is None:
-        return jsonify({"error": "Supabase not configured"}), 500
+        error_response, status_code = get_supabase_error_response()
+        return jsonify(error_response), status_code
 
     church_id = get_default_church_id()
     if church_id is None:
@@ -177,7 +178,8 @@ def get_notification(notification_id: str):
     """Get a specific notification."""
     client = get_supabase()
     if client is None:
-        return jsonify({"error": "Supabase not configured"}), 500
+        error_response, status_code = get_supabase_error_response()
+        return jsonify(error_response), status_code
 
     church_id = get_default_church_id()
     if church_id is None:
@@ -243,7 +245,8 @@ def unread_count():
 
     client = get_supabase()
     if client is None:
-        return jsonify({"error": "Supabase not configured"}), 500
+        error_response, status_code = get_supabase_error_response()
+        return jsonify(error_response), status_code
 
     church_id = get_default_church_id()
     if church_id is None:
