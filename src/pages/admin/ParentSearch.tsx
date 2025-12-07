@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { MobileNav } from '@/components/MobileNav';
+import { ParentImageModal } from '@/components/ParentImageModal';
 import { parentsApi } from '@/services/api';
-import { Search, Plus, Mail, Phone, Users, Loader2, XCircle, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Activity } from 'lucide-react';
+import { Search, Plus, Mail, Phone, Users, Loader2, XCircle, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Activity, Grid3x3, List, Eye } from 'lucide-react';
 
 interface ParentSearchResult {
   id: string;
@@ -14,6 +15,7 @@ interface ParentSearchResult {
   phone: string;
   status: string;
   childrenCount: number;
+  photoUrl?: string;
 }
 
 type SortField = 'name' | 'parentId' | 'childrenCount' | 'status';
@@ -32,6 +34,8 @@ export default function ParentSearch() {
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
 
   // Load all parents on mount
   useEffect(() => {
@@ -237,7 +241,7 @@ export default function ParentSearch() {
           </div>
         </div>
 
-        {/* Sort Controls */}
+        {/* Sort Controls and View Toggle */}
         {sortedParents.length > 0 && (
           <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-muted/30 rounded-lg border border-border/60">
             <div className="flex flex-wrap items-center gap-2">
@@ -247,9 +251,36 @@ export default function ParentSearch() {
               <SortButton field="childrenCount" label="Children" />
               <SortButton field="status" label="Status" />
             </div>
-            <p className="text-sm font-medium text-muted-foreground">
-              Showing <span className="text-foreground font-semibold">{startIndex + 1}-{Math.min(endIndex, sortedParents.length)}</span> of <span className="text-foreground font-semibold">{sortedParents.length}</span> {sortedParents.length === 1 ? 'parent' : 'parents'}
-            </p>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 border-r border-border/60 pr-4">
+                <span className="text-sm font-semibold text-foreground mr-2">View:</span>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded-lg transition-all ${
+                    viewMode === 'grid'
+                      ? 'bg-foreground text-background'
+                      : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                  }`}
+                  aria-label="Grid view"
+                >
+                  <Grid3x3 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded-lg transition-all ${
+                    viewMode === 'list'
+                      ? 'bg-foreground text-background'
+                      : 'text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                  }`}
+                  aria-label="List view"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Showing <span className="text-foreground font-semibold">{startIndex + 1}-{Math.min(endIndex, sortedParents.length)}</span> of <span className="text-foreground font-semibold">{sortedParents.length}</span> {sortedParents.length === 1 ? 'parent' : 'parents'}
+              </p>
+            </div>
           </div>
         )}
 
@@ -281,62 +312,178 @@ export default function ParentSearch() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 mb-8">
-              {paginatedParents.map((parent) => (
-                <div
-                  key={parent.id}
-                  className="group border-2 border-border/80 rounded-xl p-6 bg-background hover:border-foreground/50 hover:shadow-lg transition-all duration-200 cursor-pointer"
-                  onClick={() => handleViewDetails(parent)}
-                >
-                  <div className="flex items-start justify-between mb-5">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-3 flex-wrap">
-                        <span className="font-mono font-bold text-xs bg-foreground text-background px-2.5 py-1 rounded-md shadow-sm">
-                          {parent.parentId}
-                        </span>
-                        {parent.status === 'active' ? (
-                          <span className="text-xs bg-green-100 text-green-800 px-2.5 py-1 rounded-full font-semibold">
-                            Active
-                          </span>
-                        ) : (
-                          <span className="text-xs bg-gray-100 text-gray-800 px-2.5 py-1 rounded-full font-semibold">
-                            Inactive
-                          </span>
-                        )}
+            {viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 mb-8">
+                {paginatedParents.map((parent) => (
+                  <div
+                    key={parent.id}
+                    className="group border-2 border-border/80 rounded-xl p-6 bg-background hover:border-foreground/50 hover:shadow-lg transition-all duration-200"
+                  >
+                    {/* Image Preview */}
+                    {parent.photoUrl ? (
+                      <div className="relative mb-4 w-full aspect-square rounded-lg overflow-hidden bg-muted/30 border-2 border-border/60">
+                        <img
+                          src={parent.photoUrl}
+                          alt={parent.name}
+                          className="w-full h-full object-cover"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedImage({ url: parent.photoUrl!, name: parent.name });
+                          }}
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedImage({ url: parent.photoUrl!, name: parent.name });
+                          }}
+                          className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
+                          aria-label="View image"
+                        >
+                          <Eye className="w-6 h-6 text-white drop-shadow-lg" />
+                        </button>
                       </div>
-                      <h3 className="text-lg font-bold text-foreground mb-3 line-clamp-1">{parent.name}</h3>
-                      <div className="space-y-2 text-sm text-muted-foreground">
-                        {parent.email && (
+                    ) : (
+                      <div className="mb-4 w-full aspect-square rounded-lg bg-muted/30 border-2 border-border/60 flex items-center justify-center">
+                        <Users className="w-12 h-12 text-muted-foreground/40" />
+                      </div>
+                    )}
+                    
+                    <div className="flex items-start justify-between mb-5">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-3 flex-wrap">
+                          <span className="font-mono font-bold text-xs bg-foreground text-background px-2.5 py-1 rounded-md shadow-sm">
+                            {parent.parentId}
+                          </span>
+                          {parent.status === 'active' ? (
+                            <span className="text-xs bg-green-100 text-green-800 px-2.5 py-1 rounded-full font-semibold">
+                              Active
+                            </span>
+                          ) : (
+                            <span className="text-xs bg-gray-100 text-gray-800 px-2.5 py-1 rounded-full font-semibold">
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-lg font-bold text-foreground mb-3 line-clamp-1">{parent.name}</h3>
+                        <div className="space-y-2 text-sm text-muted-foreground">
+                          {parent.email && (
+                            <div className="flex items-center gap-2.5">
+                              <Mail className="w-4 h-4 flex-shrink-0 text-muted-foreground/70" />
+                              <span className="truncate">{parent.email}</span>
+                            </div>
+                          )}
+                          {parent.phone && (
+                            <div className="flex items-center gap-2.5">
+                              <Phone className="w-4 h-4 flex-shrink-0 text-muted-foreground/70" />
+                              <span>{parent.phone}</span>
+                            </div>
+                          )}
                           <div className="flex items-center gap-2.5">
-                            <Mail className="w-4 h-4 flex-shrink-0 text-muted-foreground/70" />
-                            <span className="truncate">{parent.email}</span>
+                            <Users className="w-4 h-4 flex-shrink-0 text-muted-foreground/70" />
+                            <span className="font-medium">{parent.childrenCount} {parent.childrenCount === 1 ? 'Child' : 'Children'}</span>
                           </div>
-                        )}
-                        {parent.phone && (
-                          <div className="flex items-center gap-2.5">
-                            <Phone className="w-4 h-4 flex-shrink-0 text-muted-foreground/70" />
-                            <span>{parent.phone}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2.5">
-                          <Users className="w-4 h-4 flex-shrink-0 text-muted-foreground/70" />
-                          <span className="font-medium">{parent.childrenCount} {parent.childrenCount === 1 ? 'Child' : 'Children'}</span>
                         </div>
                       </div>
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewDetails(parent);
+                      }}
+                      className="btn-primary w-full mt-5 text-sm py-2.5 group-hover:shadow-md"
+                    >
+                      View Details
+                    </button>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleViewDetails(parent);
-                    }}
-                    className="btn-primary w-full mt-5 text-sm py-2.5 group-hover:shadow-md"
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-3 mb-8">
+                {paginatedParents.map((parent) => (
+                  <div
+                    key={parent.id}
+                    className="group border-2 border-border/80 rounded-xl p-5 bg-background hover:border-foreground/50 hover:shadow-lg transition-all duration-200 cursor-pointer"
+                    onClick={() => handleViewDetails(parent)}
                   >
-                    View Details
-                  </button>
-                </div>
-              ))}
-            </div>
+                    <div className="flex items-center gap-5">
+                      {/* Image Preview */}
+                      {parent.photoUrl ? (
+                        <div className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-muted/30 border-2 border-border/60">
+                          <img
+                            src={parent.photoUrl}
+                            alt={parent.name}
+                            className="w-full h-full object-cover"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedImage({ url: parent.photoUrl!, name: parent.name });
+                            }}
+                          />
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedImage({ url: parent.photoUrl!, name: parent.name });
+                            }}
+                            className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
+                            aria-label="View image"
+                          >
+                            <Eye className="w-5 h-5 text-white drop-shadow-lg" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex-shrink-0 w-20 h-20 rounded-lg bg-muted/30 border-2 border-border/60 flex items-center justify-center">
+                          <Users className="w-8 h-8 text-muted-foreground/40" />
+                        </div>
+                      )}
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className="font-mono font-bold text-xs bg-foreground text-background px-2.5 py-1 rounded-md shadow-sm">
+                            {parent.parentId}
+                          </span>
+                          {parent.status === 'active' ? (
+                            <span className="text-xs bg-green-100 text-green-800 px-2.5 py-1 rounded-full font-semibold">
+                              Active
+                            </span>
+                          ) : (
+                            <span className="text-xs bg-gray-100 text-gray-800 px-2.5 py-1 rounded-full font-semibold">
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-lg font-bold text-foreground mb-2">{parent.name}</h3>
+                        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                          {parent.email && (
+                            <div className="flex items-center gap-2">
+                              <Mail className="w-4 h-4 flex-shrink-0 text-muted-foreground/70" />
+                              <span className="truncate">{parent.email}</span>
+                            </div>
+                          )}
+                          {parent.phone && (
+                            <div className="flex items-center gap-2">
+                              <Phone className="w-4 h-4 flex-shrink-0 text-muted-foreground/70" />
+                              <span>{parent.phone}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4 flex-shrink-0 text-muted-foreground/70" />
+                            <span className="font-medium">{parent.childrenCount} {parent.childrenCount === 1 ? 'Child' : 'Children'}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewDetails(parent);
+                        }}
+                        className="btn-primary px-6 py-2.5 text-sm whitespace-nowrap"
+                      >
+                        View Details
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Pagination */}
             {totalPages > 1 && (
@@ -393,6 +540,16 @@ export default function ParentSearch() {
 
       <Footer />
       <MobileNav />
+      
+      {/* Image Preview Modal */}
+      {selectedImage && (
+        <ParentImageModal
+          isOpen={!!selectedImage}
+          onClose={() => setSelectedImage(null)}
+          imageUrl={selectedImage.url}
+          alt={selectedImage.name}
+        />
+      )}
     </div>
   );
 }
