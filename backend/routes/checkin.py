@@ -97,7 +97,7 @@ def scan_qr():
 
     if not qr_code:
         return jsonify({"error": "QR code is required"}), 400
-    
+
     if not teacher_id:
         return jsonify({"error": "teacher_id is required"}), 400
 

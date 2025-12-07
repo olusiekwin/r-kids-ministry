@@ -52,13 +52,13 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter
-          future={{
-            v7_startTransition: true,
-            v7_relativeSplatPath: true,
-          }}
-        >
-          <Routes>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
+            <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
               <Route path="/set-password" element={<SetPassword />} />
@@ -80,7 +80,7 @@ const App = () => (
             <Route path="/admin/guardians" element={<ProtectedRoute requiredRole="admin"><ManageGuardians /></ProtectedRoute>} />
             <Route path="/admin/groups" element={<ProtectedRoute requiredRole="admin"><Groups /></ProtectedRoute>} />
             <Route path="/admin/audit-log" element={<ProtectedRoute requiredRole="admin"><AuditLog /></ProtectedRoute>} />
-                     <Route path="/admin/reports" element={<ProtectedRoute requiredRole="admin"><Reports /></ProtectedRoute>} />
+            <Route path="/admin/reports" element={<ProtectedRoute requiredRole="admin"><Reports /></ProtectedRoute>} />
                      <Route path="/admin/activity-tracking" element={<ProtectedRoute requiredRole="admin"><ActivityTracking /></ProtectedRoute>} />
             
             {/* Teacher Routes */}

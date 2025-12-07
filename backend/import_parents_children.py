@@ -62,27 +62,62 @@ def parse_date(date_str: str) -> Optional[str]:
             except ValueError:
                 continue
     
-    # Handle ordinal dates like "12th March 2016", "3rd October 2016", "22nd September 2019"
+    # Handle ordinal dates like "12th March 2016", "3rd October 2016", "22nd September 2019", "25th Oct 2012"
     ordinal_pattern = r'(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\s+(\d{4})'
     match = re.match(ordinal_pattern, date_str, re.IGNORECASE)
     if match:
         day, month_name, year = match.groups()
         try:
-            month_num = datetime.strptime(month_name, "%B").month
+            # Try full month name first (e.g., "March", "October")
+            try:
+                month_num = datetime.strptime(month_name, "%B").month
+            except ValueError:
+                # Try abbreviated month name (e.g., "Oct", "Aug")
+                try:
+                    month_num = datetime.strptime(month_name, "%b").month
+                except ValueError:
+                    return None
             dt = datetime(int(year), month_num, int(day))
             return dt.strftime("%Y-%m-%d")
         except ValueError:
             pass
     
-    # Handle dates without year like "10 April", "20 September"
-    # We'll estimate year based on reasonable age (assuming child is 3-15 years old)
-    # This is a heuristic - these dates should be manually corrected
+    # Handle dates without year like "10 April", "20 September", "07 Aug 2017"
+    # Also handle "07 Aug 2017" format (day month year without ordinals)
+    no_ordinal_pattern = r'(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})'
+    match = re.match(no_ordinal_pattern, date_str, re.IGNORECASE)
+    if match:
+        day, month_name, year = match.groups()
+        try:
+            # Try full month name first
+        try:
+            month_num = datetime.strptime(month_name, "%B").month
+            except ValueError:
+                # Try abbreviated month name
+                try:
+                    month_num = datetime.strptime(month_name, "%b").month
+                except ValueError:
+                    return None
+            dt = datetime(int(year), month_num, int(day))
+            return dt.strftime("%Y-%m-%d")
+        except ValueError:
+            pass
+    
+    # Handle dates without year like "10 April", "20 September" (estimate year)
     no_year_pattern = r'(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)'
     match = re.match(no_year_pattern, date_str, re.IGNORECASE)
     if match:
         day, month_name = match.groups()
         try:
+            # Try full month name first
+        try:
             month_num = datetime.strptime(month_name, "%B").month
+            except ValueError:
+                # Try abbreviated month name
+                try:
+                    month_num = datetime.strptime(month_name, "%b").month
+                except ValueError:
+                    return None
             # Estimate year assuming child is 5-10 years old (born 2014-2019)
             # This is a rough estimate - these should be manually corrected
             estimated_year = 2017  # Middle of reasonable range
