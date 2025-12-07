@@ -1,5 +1,4 @@
 from flask import Blueprint, jsonify, request
-from postgrest import desc
 
 from supabase_client import get_supabase, get_default_church_id, get_supabase_error_response
 
@@ -398,20 +397,19 @@ def get_parent_details(parent_id: str):
         # Try with joins, but handle gracefully if they fail
         recent_checkins = []
         try:
+            # Fetch check-in records and sort in Python to avoid desc import issues
             checkin_res = (
                 client.table("check_in_records")
                 .select("*, children(name, registration_id), users(name)")
                 .eq("guardian_id", guardian_id)
                 .eq("church_id", church_id)
-                .order("timestamp_in", desc=True)
-                .limit(10)
+                .limit(50)  # Get more records to sort and take top 10
                 .execute()
             )
             
-            # Filter by guardian_id manually if the join doesn't work
+            # Filter and sort by timestamp_in descending
+            all_records = []
             for record in checkin_res.data or []:
-                # Check if this record belongs to this guardian
-                # Note: check_in_records might use child_id instead of guardian_id
                 record_guardian_id = record.get("guardian_id")
                 record_child_id = record.get("child_id")
                 
@@ -419,15 +417,25 @@ def get_parent_details(parent_id: str):
                 if record_guardian_id == guardian_id or (record_child_id and any(c["id"] == record_child_id for c in children)):
                     child = record.get("children")
                     teacher = record.get("users")
-                    recent_checkins.append({
+                    timestamp_in = record.get("timestamp_in")
+                    all_records.append({
                         "recordId": record.get("record_id"),
                         "childName": child.get("name") if child and isinstance(child, dict) else "",
                         "childRegistrationId": child.get("registration_id") if child and isinstance(child, dict) else "",
-                        "timestampIn": record.get("timestamp_in"),
+                        "timestampIn": timestamp_in,
                         "timestampOut": record.get("timestamp_out"),
                         "method": record.get("method"),
                         "teacherName": teacher.get("name") if teacher and isinstance(teacher, dict) else "",
+                        "_sort_key": timestamp_in or "",  # For sorting
                     })
+            
+            # Sort by timestamp_in descending and take top 10
+            all_records.sort(key=lambda x: x["_sort_key"], reverse=True)
+            recent_checkins = [{"recordId": r["recordId"], "childName": r["childName"], 
+                               "childRegistrationId": r["childRegistrationId"], 
+                               "timestampIn": r["timestampIn"], "timestampOut": r["timestampOut"],
+                               "method": r["method"], "teacherName": r["teacherName"]} 
+                              for r in all_records[:10]]
         except Exception as checkin_error:
             print(f"⚠️ Warning: Could not fetch check-in records with joins: {checkin_error}")
             # Fallback: try simpler query
@@ -437,24 +445,34 @@ def get_parent_details(parent_id: str):
                     .select("*")
                     .eq("guardian_id", guardian_id)
                     .eq("church_id", church_id)
-                    .order("timestamp_in", desc=True)
-                    .limit(10)
+                    .limit(50)  # Get more to sort
                     .execute()
                 )
                 
-                # Filter and build manually
+                # Filter and build manually, then sort
                 child_ids = [c["id"] for c in children]
+                all_records = []
                 for record in checkin_res.data or []:
                     if record.get("child_id") in child_ids:
-                        recent_checkins.append({
+                        timestamp_in = record.get("timestamp_in")
+                        all_records.append({
                             "recordId": record.get("record_id"),
-                            "childName": "",  # Will need to look up separately if needed
+                            "childName": "",
                             "childRegistrationId": "",
-                            "timestampIn": record.get("timestamp_in"),
+                            "timestampIn": timestamp_in,
                             "timestampOut": record.get("timestamp_out"),
                             "method": record.get("method"),
                             "teacherName": "",
+                            "_sort_key": timestamp_in or "",
                         })
+                
+                # Sort and take top 10
+                all_records.sort(key=lambda x: x["_sort_key"], reverse=True)
+                recent_checkins = [{"recordId": r["recordId"], "childName": r["childName"], 
+                                   "childRegistrationId": r["childRegistrationId"], 
+                                   "timestampIn": r["timestampIn"], "timestampOut": r["timestampOut"],
+                                   "method": r["method"], "teacherName": r["teacherName"]} 
+                                  for r in all_records[:10]]
             except Exception as simple_checkin_error:
                 print(f"⚠️ Warning: Could not fetch check-in records at all: {simple_checkin_error}")
                 recent_checkins = []
