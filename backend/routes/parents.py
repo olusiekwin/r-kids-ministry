@@ -648,17 +648,39 @@ def upload_parent_image(parent_id: str):
         return jsonify({"error": "No church configured"}), 500
 
     data = request.get_json() or {}
+    
+    # Accept hex format (new) or URL format (legacy)
+    image_hex = data.get("image_hex") or data.get("imageHex")
+    mime_type = data.get("mime_type") or data.get("mimeType") or "image/jpeg"
     image_url = (data.get("image_url") or data.get("imageUrl") or "").strip()
 
+    # Convert hex to base64 data URL if hex is provided
+    if image_hex:
+        try:
+            # Convert hex string to bytes
+            hex_string = image_hex.strip()
+            # Remove any whitespace or separators
+            hex_string = ''.join(hex_string.split())
+            # Convert hex to bytes
+            image_bytes = bytes.fromhex(hex_string)
+            # Convert bytes to base64
+            import base64
+            base64_string = base64.b64encode(image_bytes).decode('utf-8')
+            # Create data URL
+            image_url = f"data:{mime_type};base64,{base64_string}"
+        except Exception as hex_error:
+            print(f"⚠️ Error converting hex to base64: {hex_error}")
+            return jsonify({"error": f"Invalid hex format: {str(hex_error)}"}), 400
+    
     if not image_url:
-        return jsonify({"error": "Image URL is required"}), 400
+        return jsonify({"error": "Image data (hex or URL) is required"}), 400
 
     # Validate URL format - accept http/https URLs or data URLs (base64)
     is_http_url = image_url.startswith("http://") or image_url.startswith("https://")
-    is_data_url = image_url.startswith("data:image/")
+    is_data_url = image_url.startswith("data:image/") or image_url.startswith("data:")
     
     if not (is_http_url or is_data_url):
-        return jsonify({"error": "Invalid image URL format. Must be http/https URL or base64 data URL"}), 400
+        return jsonify({"error": "Invalid image format. Must be http/https URL or base64 data URL"}), 400
 
     # Validate parent exists - try by guardian_id (UUID) first, then by parent_id (RS032)
     try:

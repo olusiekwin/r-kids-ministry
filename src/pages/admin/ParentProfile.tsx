@@ -212,40 +212,32 @@ export default function ParentProfile() {
     
     setUploadingImage(true);
     try {
-      // Convert file to base64 or upload to storage
-      // For now, we'll create a data URL (in production, upload to S3)
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result as string;
-        try {
-          // Upload image URL (in production, this would be S3 URL)
-          await parentsApi.uploadImage(parent.id, base64String);
-          // Reload parent details to get updated image
-          await loadParentDetails();
-          toast.success('Image uploaded', {
-            description: 'Parent image has been updated successfully.',
-          });
-        } catch (error: any) {
-          console.error('Failed to upload image:', error);
-          toast.error('Upload failed', {
-            description: error.message || 'Failed to upload image. Please try again.',
-          });
-        } finally {
-          setUploadingImage(false);
-        }
-      };
-      reader.onerror = () => {
-        toast.error('File read error', {
-          description: 'Failed to read the image file. Please try again.',
-        });
-        setUploadingImage(false);
-      };
-      reader.readAsDataURL(file);
+      // Convert file to ArrayBuffer, then to hex string
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      // Convert to hex string
+      const hexString = Array.from(uint8Array)
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+      
+      // Get file MIME type
+      const mimeType = file.type || 'image/jpeg';
+      
+      // Send hex string with MIME type to backend
+      await parentsApi.uploadImage(parent.id, hexString, mimeType);
+      
+      // Reload parent details to get updated image
+      await loadParentDetails();
+      toast.success('Image uploaded', {
+        description: 'Parent image has been updated successfully.',
+      });
     } catch (error: any) {
       console.error('Failed to process image:', error);
       toast.error('Processing failed', {
         description: error.message || 'Failed to process image. Please try again.',
       });
+    } finally {
       setUploadingImage(false);
     }
   };

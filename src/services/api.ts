@@ -278,10 +278,10 @@ export const parentsApi = {
     return apiRequest<any>(API_ENDPOINTS.PARENTS.DETAILS(id));
   },
 
-  uploadImage: async (id: string, imageUrl: string): Promise<{ photo_url: string }> => {
+  uploadImage: async (id: string, imageHex: string, mimeType: string = 'image/jpeg'): Promise<{ photo_url: string }> => {
     return apiRequest<{ photo_url: string }>(API_ENDPOINTS.PARENTS.UPLOAD_IMAGE(id), {
       method: 'POST',
-      body: JSON.stringify({ image_url: imageUrl }),
+      body: JSON.stringify({ image_hex: imageHex, mime_type: mimeType }),
     });
   },
 
