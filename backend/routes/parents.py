@@ -2,6 +2,8 @@ from flask import Blueprint, jsonify, request
 
 from supabase_client import get_supabase, get_default_church_id, get_supabase_error_response
 
+# Note: Removed postgrest.desc import - using Python sorting instead
+
 parents_bp = Blueprint("parents", __name__)
 
 
