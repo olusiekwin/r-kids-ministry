@@ -658,19 +658,46 @@ def upload_parent_image(parent_id: str):
     if image_hex:
         try:
             # Convert hex string to bytes
-            hex_string = image_hex.strip()
-            # Remove any whitespace or separators
+            hex_string = str(image_hex).strip()
+            # Remove any whitespace, newlines, or separators
             hex_string = ''.join(hex_string.split())
+            # Remove any common hex prefixes if present
+            if hex_string.startswith('0x') or hex_string.startswith('0X'):
+                hex_string = hex_string[2:]
+            
+            # Convert to lowercase for consistent parsing
+            hex_string = hex_string.lower()
+            
+            # Validate hex string contains only valid hex characters
+            if not all(c in '0123456789abcdef' for c in hex_string):
+                return jsonify({"error": "Invalid hex format: contains non-hexadecimal characters"}), 400
+            
+            # Ensure even length (hex pairs)
+            if len(hex_string) % 2 != 0:
+                return jsonify({"error": "Invalid hex format: odd number of hex digits"}), 400
+            
             # Convert hex to bytes
             image_bytes = bytes.fromhex(hex_string)
+            
+            # Validate we got some data
+            if len(image_bytes) == 0:
+                return jsonify({"error": "Invalid hex format: empty image data"}), 400
+            
             # Convert bytes to base64
             import base64
             base64_string = base64.b64encode(image_bytes).decode('utf-8')
             # Create data URL
             image_url = f"data:{mime_type};base64,{base64_string}"
-        except Exception as hex_error:
+        except ValueError as hex_error:
             print(f"⚠️ Error converting hex to base64: {hex_error}")
+            import traceback
+            traceback.print_exc()
             return jsonify({"error": f"Invalid hex format: {str(hex_error)}"}), 400
+        except Exception as hex_error:
+            print(f"⚠️ Unexpected error converting hex to base64: {hex_error}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"error": f"Failed to process hex data: {str(hex_error)}"}), 500
     
     if not image_url:
         return jsonify({"error": "Image data (hex or URL) is required"}), 400
