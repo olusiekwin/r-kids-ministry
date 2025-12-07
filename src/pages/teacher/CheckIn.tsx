@@ -5,6 +5,7 @@ import { MobileNav } from '@/components/MobileNav';
 import { TeacherSidebar } from '@/components/TeacherSidebar';
 import { QRCodeScanner } from '@/components/QRCodeScanner';
 import { sessionsApi, sessionBookingsApi, checkInApi } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Calendar, Users, CheckCircle2 } from 'lucide-react';
 
 interface Session {
@@ -28,6 +29,7 @@ interface Booking {
 
 export default function CheckIn() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -103,14 +105,22 @@ export default function CheckIn() {
     
     try {
       setCheckingIn(booking.child_id);
+      if (!user?.id) {
+        alert('User not authenticated. Please login again.');
+        return;
+      }
       // Check in using OTP for this session
       if (booking.otp_code) {
-        await checkInApi.verifyOTP(booking.child_id, booking.otp_code, selectedSession.id);
+        await checkInApi.verifyOTP(booking.child_id, booking.otp_code, selectedSession.id, user.id);
         alert(`${booking.child_name} checked in successfully!`);
         await loadBookings();
       } else {
         // Try manual check-in without OTP
-        await checkInApi.manual(booking.child_id, selectedSession.id);
+        if (!user?.id) {
+          alert('User not authenticated. Please login again.');
+          return;
+        }
+        await checkInApi.manual(booking.child_id, selectedSession.id, user.id);
         alert(`${booking.child_name} checked in successfully!`);
         await loadBookings();
       }

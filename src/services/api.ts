@@ -382,7 +382,7 @@ export const guardiansApi = {
 
 // Check-In API
 export const checkInApi = {
-  scanQR: async (qrCode: string, sessionId?: string) => {
+  scanQR: async (qrCode: string, sessionId?: string, teacherId?: string) => {
     return apiRequest<any>(
       API_ENDPOINTS.CHECKIN.SCAN_QR,
       {
@@ -390,12 +390,13 @@ export const checkInApi = {
         body: JSON.stringify({ 
           qr_code: qrCode,
           session_id: sessionId,
+          teacher_id: teacherId,
         }),
       }
     );
   },
 
-  manual: async (childId: string, sessionId?: string) => {
+  manual: async (childId: string, sessionId?: string, teacherId?: string) => {
     return apiRequest<any>(
       API_ENDPOINTS.CHECKIN.MANUAL,
       {
@@ -403,12 +404,13 @@ export const checkInApi = {
         body: JSON.stringify({ 
           child_id: childId,
           session_id: sessionId,
+          teacher_id: teacherId,
         }),
       }
     );
   },
 
-  verifyOTP: async (childId: string, otpCode: string, sessionId?: string) => {
+  verifyOTP: async (childId: string, otpCode: string, sessionId?: string, teacherId?: string) => {
     return apiRequest<any>(
       API_ENDPOINTS.CHECKIN.VERIFY_OTP,
       {
@@ -416,6 +418,7 @@ export const checkInApi = {
         body: JSON.stringify({ 
           otp_code: otpCode,
           session_id: sessionId,
+          teacher_id: teacherId,
         }),
       }
     );

@@ -6,6 +6,7 @@ import { MobileNav } from '@/components/MobileNav';
 import { ParentImageUpload } from '@/components/ParentImageUpload';
 import { ParentImageModal } from '@/components/ParentImageModal';
 import { parentsApi, checkInApi, checkOutApi } from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
   AlertDialog,
@@ -67,6 +68,7 @@ interface ChildDetail {
 export default function ParentProfile() {
   const { parentId } = useParams<{ parentId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [parent, setParent] = useState<ParentDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -104,10 +106,14 @@ export default function ParentProfile() {
 
   const handleCheckIn = async () => {
     if (!selectedChild || !parent) return;
+    if (!user?.id) {
+      alert('User not authenticated. Please login again.');
+      return;
+    }
     
     setActionLoading(selectedChild.id);
     try {
-      await checkInApi.manual(selectedChild.id);
+      await checkInApi.manual(selectedChild.id, undefined, user.id);
       await loadParentDetails();
       setShowCheckInModal(false);
       setSelectedChild(null);

@@ -97,6 +97,9 @@ def scan_qr():
 
     if not qr_code:
         return jsonify({"error": "QR code is required"}), 400
+    
+    if not teacher_id:
+        return jsonify({"error": "teacher_id is required"}), 400
 
     client = get_supabase()
     if client is None:
@@ -163,11 +166,14 @@ def manual_checkin():
     data = request.get_json() or {}
     child_id = data.get("child_id") or data.get("childId")
     session_id = data.get("session_id") or data.get("sessionId")
-    teacher_id = data.get("teacher_id") or data.get("teacherId")  # From auth token
+    teacher_id = data.get("teacher_id") or data.get("teacherId")  # From auth token or request
     guardian_id = data.get("guardian_id") or data.get("guardianId")  # Optional
 
     if not child_id:
         return jsonify({"error": "child_id is required"}), 400
+    
+    if not teacher_id:
+        return jsonify({"error": "teacher_id is required"}), 400
 
     client = get_supabase()
     booking_id = None
@@ -217,6 +223,9 @@ def verify_otp():
 
     if not otp_code:
         return jsonify({"error": "OTP code is required"}), 400
+    
+    if not teacher_id:
+        return jsonify({"error": "teacher_id is required"}), 400
 
     client = get_supabase()
     booking_id = None
@@ -339,6 +348,10 @@ def _create_checkin_record(
     if church_id is None:
         return jsonify({"error": "No church configured"}), 500
 
+    # teacher_id is required for all check-in records
+    if not teacher_id:
+        return jsonify({"error": "teacher_id is required"}), 400
+
     try:
         # Verify child exists
         child_res = (
@@ -356,13 +369,12 @@ def _create_checkin_record(
         record_data = {
             "church_id": church_id,
             "child_id": child_id,
+            "teacher_id": teacher_id,  # Required field
             "method": method,
             "timestamp_in": datetime.utcnow().isoformat(),
         }
         if guardian_id:
             record_data["guardian_id"] = guardian_id
-        if teacher_id:
-            record_data["teacher_id"] = teacher_id
         if qr_code:
             record_data["qr_code"] = qr_code
         if otp_code:
