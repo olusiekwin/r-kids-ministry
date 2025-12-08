@@ -5,7 +5,7 @@ import { Footer } from '@/components/Footer';
 import { MobileNav } from '@/components/MobileNav';
 import { ParentImageUpload } from '@/components/ParentImageUpload';
 import { ParentImageModal } from '@/components/ParentImageModal';
-import { parentsApi, checkInApi, checkOutApi } from '@/services/api';
+import { parentsApi, checkInApi, checkOutApi, sessionsApi, sessionBookingsApi, childrenApi, groupsApi } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/sonner';
@@ -81,14 +81,41 @@ export default function ParentProfile() {
   const [showCheckOutModal, setShowCheckOutModal] = useState(false);
   const [showActivateModal, setShowActivateModal] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [showEditChildModal, setShowEditChildModal] = useState(false);
   const [selectedChild, setSelectedChild] = useState<ChildDetail | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  
+  // Session-based check-in/checkout
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [selectedSession, setSelectedSession] = useState<any | null>(null);
+  const [loadingSessions, setLoadingSessions] = useState(false);
 
   useEffect(() => {
     if (parentId) {
       loadParentDetails();
+      loadTodaySessions();
     }
   }, [parentId]);
+  
+  useEffect(() => {
+    if (showCheckInModal || showCheckOutModal) {
+      loadTodaySessions();
+    }
+  }, [showCheckInModal, showCheckOutModal]);
+  
+  const loadTodaySessions = async () => {
+    try {
+      setLoadingSessions(true);
+      const today = new Date().toISOString().split('T')[0];
+      const data = await sessionsApi.list({ date: today });
+      setSessions(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load sessions:', error);
+      setSessions([]);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
 
   const loadParentDetails = async () => {
     if (!parentId) return;
@@ -115,14 +142,23 @@ export default function ParentProfile() {
       return;
     }
     
+    // Require session selection for check-in
+    if (!selectedSession) {
+      toast.error('Session required', {
+        description: 'Please select a session before checking in.',
+      });
+      return;
+    }
+    
     setActionLoading(selectedChild.id);
     try {
-      await checkInApi.manual(selectedChild.id, undefined, user.id);
+      await checkInApi.manual(selectedChild.id, selectedSession.id, user.id);
       await loadParentDetails();
       setShowCheckInModal(false);
       setSelectedChild(null);
+      setSelectedSession(null);
       toast.success('Check-in successful', {
-        description: `${selectedChild.name} has been checked in.`,
+        description: `${selectedChild.name} has been checked in for ${selectedSession.title}.`,
       });
     } catch (error: any) {
       console.error('Check-in failed:', error);
@@ -140,10 +176,12 @@ export default function ParentProfile() {
     setActionLoading(selectedChild.id);
     try {
       // Manual check-out - just record the timestamp
+      // Note: Checkout doesn't require session, it finds the active check-in record
       await checkOutApi.release(selectedChild.id, parent.id, '');
       await loadParentDetails();
       setShowCheckOutModal(false);
       setSelectedChild(null);
+      setSelectedSession(null);
       toast.success('Check-out successful', {
         description: `${selectedChild.name} has been checked out.`,
       });
@@ -513,6 +551,16 @@ export default function ParentProfile() {
                     <button
                       onClick={() => {
                         setSelectedChild(child);
+                        setShowEditChildModal(true);
+                      }}
+                      className="btn-secondary flex items-center justify-center gap-2 text-sm py-2 px-3"
+                      title="Edit child details"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedChild(child);
                         setShowCheckInModal(true);
                       }}
                       className="btn-primary flex-1 flex items-center justify-center gap-2 text-sm py-2"
@@ -670,20 +718,63 @@ export default function ParentProfile() {
         )}
 
         {/* Check-In Confirmation Modal */}
-        <AlertDialog open={showCheckInModal} onOpenChange={setShowCheckInModal}>
-          <AlertDialogContent>
+        <AlertDialog open={showCheckInModal} onOpenChange={(open) => {
+          setShowCheckInModal(open);
+          if (!open) {
+            setSelectedSession(null);
+            setSelectedChild(null);
+          }
+        }}>
+          <AlertDialogContent className="max-w-md">
             <AlertDialogHeader>
-              <AlertDialogTitle>Confirm Check-In</AlertDialogTitle>
+              <AlertDialogTitle>Check In Child</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to check in <strong>{selectedChild?.name}</strong>?
-                This will record their arrival time.
+                Select a session for <strong>{selectedChild?.name}</strong>
               </AlertDialogDescription>
             </AlertDialogHeader>
+            
+            <div className="py-4">
+              {loadingSessions ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-sm text-muted-foreground">Loading sessions...</span>
+                </div>
+              ) : sessions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Calendar className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No sessions available for today.</p>
+                  <p className="text-xs mt-1">Please create a session in the calendar first.</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                  {sessions.map((session) => (
+                    <button
+                      key={session.id}
+                      onClick={() => setSelectedSession(session)}
+                      className={`w-full text-left p-3 rounded-md border-2 transition-all ${
+                        selectedSession?.id === session.id
+                          ? 'border-foreground bg-muted'
+                          : 'border-border hover:border-foreground/50'
+                      }`}
+                    >
+                      <div className="font-medium">{session.title || 'Session'}</div>
+                      {session.start_time && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {new Date(`2000-01-01T${session.start_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {session.end_time && ` - ${new Date(`2000-01-01T${session.end_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleCheckIn}
-                disabled={actionLoading !== null}
+                disabled={actionLoading !== null || !selectedSession || loadingSessions}
                 className="bg-foreground text-background"
               >
                 {actionLoading ? (

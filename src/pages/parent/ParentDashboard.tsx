@@ -8,7 +8,18 @@ import { QRCodeGenerator } from '@/components/QRCodeGenerator';
 import { childrenApi, checkInApi, analyticsApi } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Child } from '@/types';
-import { CheckCircle2, Clock, Bell, X, BarChart3, Calendar, TrendingUp, Users, QrCode, ArrowRight, BookOpen, Plus } from 'lucide-react';
+import { toast } from '@/components/ui/sonner';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { CheckCircle2, Clock, Bell, X, BarChart3, Calendar, TrendingUp, Users, QrCode, ArrowRight, BookOpen, Plus, Edit, Loader2 } from 'lucide-react';
 
 type ChildStatus = 'not_checked_in' | 'checked_in' | 'ready_for_pickup' | 'checked_out';
 
@@ -22,6 +33,8 @@ interface ChildWithStatus {
   checkInTime?: string;
   parentId: string;
   childStatus: 'active' | 'pending' | 'rejected';
+  gender?: 'Male' | 'Female' | 'Other';
+  dateOfBirth?: string;
 }
 
 export default function ParentDashboard() {
@@ -32,6 +45,17 @@ export default function ParentDashboard() {
   const [loading, setLoading] = useState(true);
   const [childAnalytics, setChildAnalytics] = useState<Record<string, any>>({});
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  
+  // Edit child modal
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedChild, setSelectedChild] = useState<ChildWithStatus | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    dateOfBirth: '',
+    gender: '' as 'Male' | 'Female' | 'Other' | '',
+  });
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
 
   useEffect(() => {
     loadChildren();
@@ -62,6 +86,8 @@ export default function ParentDashboard() {
           ? 'not_checked_in' as ChildStatus
           : 'not_checked_in' as ChildStatus,
         checkInTime: undefined,
+        gender: child.gender,
+        dateOfBirth: child.dateOfBirth,
       }));
       
       setMyChildren(childrenWithStatus);
@@ -100,6 +126,75 @@ export default function ParentDashboard() {
     } catch (error) {
       console.error('Failed to generate QR code:', error);
       alert('Failed to generate QR code. Please try again.');
+    }
+  };
+  
+  const handleEditChild = (child: ChildWithStatus) => {
+    setSelectedChild(child);
+    setEditFormData({
+      name: child.name,
+      dateOfBirth: child.dateOfBirth || '',
+      gender: child.gender || '',
+    });
+    setEditError('');
+    setShowEditModal(true);
+  };
+  
+  const calculateAge = (dateOfBirth: string): number => {
+    if (!dateOfBirth) return 0;
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+  
+  const handleSaveEdit = async () => {
+    if (!selectedChild) return;
+    
+    setEditError('');
+    
+    // Validation
+    if (!editFormData.name.trim()) {
+      setEditError('Child name is required');
+      return;
+    }
+    if (!editFormData.dateOfBirth) {
+      setEditError('Date of birth is required');
+      return;
+    }
+    const age = calculateAge(editFormData.dateOfBirth);
+    if (age < 0 || age > 19) {
+      setEditError('Child must be between 0 and 19 years old');
+      return;
+    }
+    if (!editFormData.gender) {
+      setEditError('Gender is required');
+      return;
+    }
+    
+    setEditLoading(true);
+    try {
+      await childrenApi.update(selectedChild.id, {
+        name: editFormData.name,
+        dateOfBirth: editFormData.dateOfBirth,
+        gender: editFormData.gender,
+      });
+      
+      await loadChildren();
+      setShowEditModal(false);
+      setSelectedChild(null);
+      toast.success('Child updated successfully', {
+        description: `${editFormData.name}'s details have been updated.`,
+      });
+    } catch (error: any) {
+      console.error('Failed to update child:', error);
+      setEditError(error.message || 'Failed to update child. Please try again.');
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -330,6 +425,11 @@ export default function ParentDashboard() {
                     <p className="text-sm text-muted-foreground">
                       Group: {child.group}
                     </p>
+                    {child.gender && (
+                      <p className="text-sm text-muted-foreground">
+                        Gender: {child.gender}
+                      </p>
+                    )}
                           {child.checkInTime && (
                             <p className="text-xs text-muted-foreground mt-1">
                               Checked in at {child.checkInTime}
@@ -430,6 +530,13 @@ export default function ParentDashboard() {
                   >
                     Attendance
                   </button>
+                  <button
+                    onClick={() => handleEditChild(child)}
+                    className="btn-secondary"
+                  >
+                    <Edit className="w-4 h-4 inline mr-2" />
+                    Edit Details
+                  </button>
                       </div>
                     )}
               </div>
@@ -439,6 +546,91 @@ export default function ParentDashboard() {
           )}
         </div>
       </main>
+
+      {/* Edit Child Modal */}
+      <AlertDialog open={showEditModal} onOpenChange={(open) => {
+        setShowEditModal(open);
+        if (!open) {
+          setSelectedChild(null);
+          setEditError('');
+        }
+      }}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Edit Child Details</AlertDialogTitle>
+            <AlertDialogDescription>
+              Update information for <strong>{selectedChild?.name}</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="py-4 space-y-4">
+            {editError && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3 text-sm text-red-800 dark:text-red-200">
+                {editError}
+              </div>
+            )}
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Name</label>
+              <input
+                type="text"
+                value={editFormData.name}
+                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background"
+                placeholder="Child's full name"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Date of Birth</label>
+              <input
+                type="date"
+                value={editFormData.dateOfBirth}
+                onChange={(e) => setEditFormData({ ...editFormData, dateOfBirth: e.target.value })}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background"
+                max={new Date().toISOString().split('T')[0]}
+              />
+              {editFormData.dateOfBirth && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Age: {calculateAge(editFormData.dateOfBirth)} years old
+                </p>
+              )}
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Gender</label>
+              <select
+                value={editFormData.gender}
+                onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value as 'Male' | 'Female' | 'Other' })}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background"
+              >
+                <option value="">Select gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSaveEdit}
+              disabled={editLoading}
+              className="bg-foreground text-background"
+            >
+              {editLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin inline" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <MobileNav />
     </div>
