@@ -544,20 +544,111 @@ export default function ParentProfile() {
               Recent Check-In History
             </h2>
             <div className="space-y-3">
-              {parent.recentCheckIns.map((record: any, index: number) => (
+              {parent.recentCheckIns.map((record: any, index: number) => {
+                const formatDateTime = (timestamp: string) => {
+                  if (!timestamp) return 'N/A';
+                  try {
+                    const date = new Date(timestamp);
+                    return date.toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true
+                    });
+                  } catch {
+                    return timestamp;
+                  }
+                };
+                
+                const formatTime = (timestamp: string) => {
+                  if (!timestamp) return '';
+                  try {
+                    const date = new Date(timestamp);
+                    return date.toLocaleTimeString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true
+                    });
+                  } catch {
+                    return timestamp;
+                  }
+                };
+                
+                return (
                 <div
                   key={record.recordId || index}
                   className="border border-border rounded-lg p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
                 >
-                  <div>
-                    <p className="font-medium text-foreground">{record.childName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {record.timestampIn && formatDate(record.timestampIn)}
-                      {record.timestampOut && ` → ${formatDate(record.timestampOut)}`}
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground mb-2">
+                      {record.childName || 'Unknown Child'}
+                      {record.childRegistrationId && (
+                        <span className="font-mono text-xs text-muted-foreground ml-2">
+                          ({record.childRegistrationId})
+                        </span>
+                      )}
                     </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Method: {record.method} | Teacher: {record.teacherName || 'N/A'}
-                    </p>
+                    
+                    {/* Check-In Timestamp */}
+                    <div className="flex items-center gap-2 mb-1">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      <div>
+                        <span className="text-xs font-medium text-muted-foreground">Checked In:</span>
+                        <span className="text-sm text-foreground ml-2 font-medium">
+                          {record.timestampIn ? formatDateTime(record.timestampIn) : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Check-Out Timestamp */}
+                    {record.timestampOut && (
+                      <div className="flex items-center gap-2 mb-1">
+                        <LogOut className="w-4 h-4 text-blue-600" />
+                        <div>
+                          <span className="text-xs font-medium text-muted-foreground">Checked Out:</span>
+                          <span className="text-sm text-foreground ml-2 font-medium">
+                            {formatDateTime(record.timestampOut)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Duration if checked out */}
+                    {record.timestampIn && record.timestampOut && (
+                      <div className="flex items-center gap-2 mb-1">
+                        <Clock className="w-4 h-4 text-purple-600" />
+                        <div>
+                          <span className="text-xs font-medium text-muted-foreground">Duration:</span>
+                          <span className="text-sm text-foreground ml-2 font-medium">
+                            {(() => {
+                              try {
+                                const checkIn = new Date(record.timestampIn);
+                                const checkOut = new Date(record.timestampOut);
+                                const diffMs = checkOut.getTime() - checkIn.getTime();
+                                const diffMins = Math.floor(diffMs / 60000);
+                                const hours = Math.floor(diffMins / 60);
+                                const mins = diffMins % 60;
+                                return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+                              } catch {
+                                return 'N/A';
+                              }
+                            })()}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Method and Teacher */}
+                    <div className="flex items-center gap-4 mt-2 pt-2 border-t border-border text-xs text-muted-foreground">
+                      {record.method && (
+                        <span>Method: <span className="font-medium">{record.method}</span></span>
+                      )}
+                      {record.teacherName && (
+                        <span>Teacher: <span className="font-medium">{record.teacherName}</span></span>
+                      )}
+                    </div>
                   </div>
                   {record.timestampOut ? (
                     <span className="text-xs bg-gray-100 text-gray-800 px-3 py-1 rounded-full font-medium">
