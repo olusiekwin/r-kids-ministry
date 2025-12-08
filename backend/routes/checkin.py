@@ -192,9 +192,9 @@ def manual_checkin():
     client = get_supabase()
     booking_id = None
 
-    if client is None:
-        return jsonify({"error": "Supabase not configured"}), 500
-
+        if client is None:
+            return jsonify({"error": "Supabase not configured"}), 500
+        
     # If session_id provided, find booking (optional - allows check-in without booking)
     if session_id:
         try:
@@ -217,21 +217,31 @@ def manual_checkin():
             print(f"⚠️ Error looking up booking: {exc}")
             # Continue without booking_id - allow manual check-in
 
-    # If no guardian_id provided, try to get it from child's parent
+    # ALWAYS get guardian_id from child's parent to ensure data integrity
+    # This prevents data mix-up in history queries
     if not guardian_id:
         try:
-            child_res = (
-                client.table("children")
-                .select("parent_id")
-                .eq("child_id", child_id)
-                .eq("church_id", get_default_church_id())
-                .limit(1)
-                .execute()
-            )
-            if child_res.data and child_res.data[0].get("parent_id"):
-                guardian_id = child_res.data[0]["parent_id"]
+            church_id = get_default_church_id()
+            if church_id:
+                child_res = (
+                    client.table("children")
+                    .select("parent_id")
+                    .eq("child_id", child_id)
+                    .eq("church_id", church_id)
+                    .limit(1)
+                    .execute()
+                )
+                if child_res.data and child_res.data[0].get("parent_id"):
+                    guardian_id = child_res.data[0]["parent_id"]
+                    print(f"✅ Auto-fetched guardian_id {guardian_id} for child {child_id}")
         except Exception as e:
             print(f"⚠️ Error fetching child's parent: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    # Log if guardian_id is still missing (for debugging)
+    if not guardian_id:
+        print(f"⚠️ Warning: No guardian_id found for child {child_id}. Check-in will proceed but history may be incomplete.")
 
     # Use "PARENT_ID" method for manual check-in (matches database constraint)
     return _create_checkin_record(
@@ -317,19 +327,19 @@ def verify_otp():
                 import traceback
                 traceback.print_exc()
                 return jsonify({"error": "Failed to verify child"}), 500
-        else:
-            # Legacy: Check in-memory OTP store
-            if otp_code not in otp_codes_db:
+    else:
+        # Legacy: Check in-memory OTP store
+        if otp_code not in otp_codes_db:
                 return jsonify({"error": "Invalid or expired OTP code. Please provide child_id or use a valid OTP."}), 401
 
-            otp_data = otp_codes_db[otp_code]
-            if datetime.utcnow() > otp_data["expires_at"]:
-                del otp_codes_db[otp_code]
-                return jsonify({"error": "OTP code expired"}), 401
-
-            child_id = otp_data["child_id"]
-            guardian_id = otp_data.get("guardian_id")
+        otp_data = otp_codes_db[otp_code]
+        if datetime.utcnow() > otp_data["expires_at"]:
             del otp_codes_db[otp_code]
+            return jsonify({"error": "OTP code expired"}), 401
+
+        child_id = otp_data["child_id"]
+        guardian_id = otp_data.get("guardian_id")
+        del otp_codes_db[otp_code]
 
     if not child_id:
         return jsonify({"error": "Could not determine child_id from OTP"}), 400
@@ -558,10 +568,10 @@ def _create_checkin_record(
             record_data["booking_id"] = booking_id
 
         try:
-            res = client.table("check_in_records").insert(record_data).execute()
-            if not res.data:
+        res = client.table("check_in_records").insert(record_data).execute()
+        if not res.data:
                 return jsonify({"error": "Failed to create check-in record", "message": "Database insert returned no data"}), 500
-            record = res.data[0]
+        record = res.data[0]
         except Exception as insert_error:
             print(f"⚠️ Error inserting check-in record: {insert_error}")
             import traceback

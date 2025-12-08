@@ -399,37 +399,47 @@ def get_parent_details(parent_id: str):
         # Try with joins, but handle gracefully if they fail
         recent_checkins = []
         try:
-            # Fetch check-in records and sort in Python to avoid desc import issues
-            checkin_res = (
-                client.table("check_in_records")
-                .select("*, children(name, registration_id), users(name)")
-                .eq("guardian_id", guardian_id)
-                .eq("church_id", church_id)
-                .limit(50)  # Get more records to sort and take top 10
-                .execute()
-            )
+            # Get all child IDs for this parent/guardian to ensure we only get their children's records
+            child_ids = [c["id"] for c in children]
             
-            # Filter and sort by timestamp_in descending
-            all_records = []
-            for record in checkin_res.data or []:
-                record_guardian_id = record.get("guardian_id")
-                record_child_id = record.get("child_id")
+            if not child_ids:
+                # No children, so no check-in records
+                recent_checkins = []
+            else:
+                # Fetch check-in records ONLY for this parent's children
+                # This ensures we don't mix up data from different parents
+                checkin_res = (
+                    client.table("check_in_records")
+                    .select("*, children(name, registration_id, parent_id), users(name)")
+                    .eq("church_id", church_id)
+                    .in_("child_id", child_ids)  # Only get records for this parent's children
+                    .limit(100)  # Get more records to sort and take top 10
+                    .execute()
+                )
                 
-                # If guardian_id matches, or if we can verify through child_id
-                if record_guardian_id == guardian_id or (record_child_id and any(c["id"] == record_child_id for c in children)):
+                # Filter and sort by timestamp_in descending
+                all_records = []
+                for record in checkin_res.data or []:
+                    record_child_id = record.get("child_id")
                     child = record.get("children")
                     teacher = record.get("users")
-                    timestamp_in = record.get("timestamp_in")
-                    all_records.append({
-                        "recordId": record.get("record_id"),
-                        "childName": child.get("name") if child and isinstance(child, dict) else "",
-                        "childRegistrationId": child.get("registration_id") if child and isinstance(child, dict) else "",
-                        "timestampIn": timestamp_in,
-                        "timestampOut": record.get("timestamp_out"),
-                        "method": record.get("method"),
-                        "teacherName": teacher.get("name") if teacher and isinstance(teacher, dict) else "",
-                        "_sort_key": timestamp_in or "",  # For sorting
-                    })
+                    
+                    # Double-check: ensure this child belongs to this parent
+                    # This prevents any data mix-up
+                    child_belongs_to_parent = any(c["id"] == record_child_id for c in children)
+                    
+                    if child_belongs_to_parent:
+                        timestamp_in = record.get("timestamp_in")
+                        all_records.append({
+                            "recordId": record.get("record_id"),
+                            "childName": child.get("name") if child and isinstance(child, dict) else "",
+                            "childRegistrationId": child.get("registration_id") if child and isinstance(child, dict) else "",
+                            "timestampIn": timestamp_in,
+                            "timestampOut": record.get("timestamp_out"),
+                            "method": record.get("method"),
+                            "teacherName": teacher.get("name") if teacher and isinstance(teacher, dict) else "",
+                            "_sort_key": timestamp_in or "",  # For sorting
+                        })
             
             # Sort by timestamp_in descending and take top 10
             all_records.sort(key=lambda x: x["_sort_key"], reverse=True)
@@ -440,41 +450,50 @@ def get_parent_details(parent_id: str):
                               for r in all_records[:10]]
         except Exception as checkin_error:
             print(f"⚠️ Warning: Could not fetch check-in records with joins: {checkin_error}")
-            # Fallback: try simpler query
+            # Fallback: try simpler query (if joins fail)
             try:
-                checkin_res = (
-                    client.table("check_in_records")
-                    .select("*")
-                    .eq("guardian_id", guardian_id)
-                    .eq("church_id", church_id)
-                    .limit(50)  # Get more to sort
-                    .execute()
-                )
-                
-                # Filter and build manually, then sort
                 child_ids = [c["id"] for c in children]
-                all_records = []
-                for record in checkin_res.data or []:
-                    if record.get("child_id") in child_ids:
-                        timestamp_in = record.get("timestamp_in")
-                        all_records.append({
-                            "recordId": record.get("record_id"),
-                            "childName": "",
-                            "childRegistrationId": "",
-                            "timestampIn": timestamp_in,
-                            "timestampOut": record.get("timestamp_out"),
-                            "method": record.get("method"),
-                            "teacherName": "",
-                            "_sort_key": timestamp_in or "",
-                        })
                 
-                # Sort and take top 10
-                all_records.sort(key=lambda x: x["_sort_key"], reverse=True)
-                recent_checkins = [{"recordId": r["recordId"], "childName": r["childName"], 
-                                   "childRegistrationId": r["childRegistrationId"], 
-                                   "timestampIn": r["timestampIn"], "timestampOut": r["timestampOut"],
-                                   "method": r["method"], "teacherName": r["teacherName"]} 
-                                  for r in all_records[:10]]
+                if not child_ids:
+                    recent_checkins = []
+                else:
+                    # Query ONLY by child_id to prevent data mix-up
+                    checkin_res = (
+                        client.table("check_in_records")
+                        .select("*")
+                        .eq("church_id", church_id)
+                        .in_("child_id", child_ids)  # Only this parent's children
+                        .limit(100)  # Get more to sort
+                        .execute()
+                    )
+                    
+                    # Filter and build manually, then sort
+                    all_records = []
+                    for record in checkin_res.data or []:
+                        record_child_id = record.get("child_id")
+                        # Double-check child belongs to this parent
+                        if record_child_id in child_ids:
+                            timestamp_in = record.get("timestamp_in")
+                            # Try to get child name from children list
+                            child_info = next((c for c in children if c["id"] == record_child_id), {})
+                            all_records.append({
+                                "recordId": record.get("record_id"),
+                                "childName": child_info.get("name", ""),
+                                "childRegistrationId": child_info.get("registrationId", ""),
+                                "timestampIn": timestamp_in,
+                                "timestampOut": record.get("timestamp_out"),
+                                "method": record.get("method"),
+                                "teacherName": "",
+                                "_sort_key": timestamp_in or "",
+                            })
+                    
+                    # Sort and take top 10
+                    all_records.sort(key=lambda x: x["_sort_key"], reverse=True)
+                    recent_checkins = [{"recordId": r["recordId"], "childName": r["childName"], 
+                                       "childRegistrationId": r["childRegistrationId"], 
+                                       "timestampIn": r["timestampIn"], "timestampOut": r["timestampOut"],
+                                       "method": r["method"], "teacherName": r["teacherName"]} 
+                                      for r in all_records[:10]]
             except Exception as simple_checkin_error:
                 print(f"⚠️ Warning: Could not fetch check-in records at all: {simple_checkin_error}")
                 recent_checkins = []
