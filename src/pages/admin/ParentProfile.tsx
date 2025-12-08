@@ -35,7 +35,8 @@ import {
   PowerOff,
   Eye,
   Printer,
-  FileText
+  FileText,
+  LogOut
 } from 'lucide-react';
 
 interface ParentDetails {
@@ -650,17 +651,20 @@ export default function ParentProfile() {
                       )}
                     </div>
                   </div>
-                  {record.timestampOut ? (
-                    <span className="text-xs bg-gray-100 text-gray-800 px-3 py-1 rounded-full font-medium">
-                      Checked Out
-                    </span>
-                  ) : (
-                    <span className="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-full font-medium">
-                      Checked In
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2 ml-4">
+                    {record.timestampOut ? (
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                        Checked Out
+                      </span>
+                    ) : (
+                      <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        Checked In
+                      </span>
+                    )}
+                  </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
