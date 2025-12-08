@@ -170,10 +170,24 @@ def manual_checkin():
     guardian_id = data.get("guardian_id") or data.get("guardianId")  # Optional
 
     if not child_id:
-        return jsonify({"error": "child_id is required"}), 400
+        return jsonify({"error": "child_id is required", "message": "Please provide a valid child ID"}), 400
     
     if not teacher_id:
-        return jsonify({"error": "teacher_id is required"}), 400
+        return jsonify({"error": "teacher_id is required", "message": "Please provide a valid teacher/user ID"}), 400
+    
+    # Validate UUID format
+    import re
+    uuid_pattern = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.IGNORECASE)
+    if not uuid_pattern.match(str(child_id)):
+        return jsonify({
+            "error": "Invalid child_id format",
+            "message": f"child_id must be a valid UUID format. Received: {child_id}"
+        }), 400
+    if not uuid_pattern.match(str(teacher_id)):
+        return jsonify({
+            "error": "Invalid teacher_id format",
+            "message": f"teacher_id must be a valid UUID format. Received: {teacher_id}"
+        }), 400
 
     client = get_supabase()
     booking_id = None
@@ -567,6 +581,13 @@ def _create_checkin_record(
                         "message": f"Child ID {child_id} does not exist in the children table.",
                         "details": error_msg
                     }), 400
+            # Check for UUID format errors
+            if "invalid input syntax for type uuid" in error_msg.lower() or "22P02" in error_msg:
+                return jsonify({
+                    "error": "Invalid UUID format",
+                    "message": "One or more IDs provided are not in valid UUID format. Please check child_id and teacher_id.",
+                    "details": error_msg
+                }), 400
             return jsonify({
                 "error": "Failed to create check-in record",
                 "message": error_msg

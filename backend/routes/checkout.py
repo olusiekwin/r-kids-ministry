@@ -318,5 +318,18 @@ def release_child(child_id: str):
         })
     except Exception as exc:  # pragma: no cover
         print(f"⚠️ Error releasing child: {exc}")
-        return jsonify({"error": "Failed to release child"}), 500
+        import traceback
+        traceback.print_exc()
+        error_msg = str(exc)
+        # Provide more specific error messages
+        if "foreign key" in error_msg.lower():
+            return jsonify({
+                "error": "Database constraint violation",
+                "message": "The child or guardian ID does not exist in the database",
+                "details": error_msg
+            }), 400
+        return jsonify({
+            "error": "Failed to release child",
+            "message": error_msg
+        }), 500
 
