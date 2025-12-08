@@ -1,10 +1,12 @@
 // Backend API Configuration
 // In production, this should be set via VITE_API_BASE_URL environment variable
 // For Vercel: Set VITE_API_BASE_URL=https://r-kids-ministry.onrender.com/api in project settings
+// 
+// Default to remote server for development. To use local backend:
+// 1. Create .env file with: VITE_API_BASE_URL=http://localhost:5000/api
+// 2. Or run: VITE_API_BASE_URL=http://localhost:5000/api npm run dev
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
-  (import.meta.env.PROD 
-    ? 'https://r-kids-ministry.onrender.com/api'
-    : 'http://localhost:5000/api');
+  'https://r-kids-ministry.onrender.com/api';
 
 export const API_ENDPOINTS = {
   // Authentication
