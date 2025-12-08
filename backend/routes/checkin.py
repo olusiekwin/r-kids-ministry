@@ -543,11 +543,34 @@ def _create_checkin_record(
         if booking_id:
             record_data["booking_id"] = booking_id
 
-        res = client.table("check_in_records").insert(record_data).execute()
-        if not res.data:
-            return jsonify({"error": "Failed to create check-in record"}), 500
-
-        record = res.data[0]
+        try:
+            res = client.table("check_in_records").insert(record_data).execute()
+            if not res.data:
+                return jsonify({"error": "Failed to create check-in record", "message": "Database insert returned no data"}), 500
+            record = res.data[0]
+        except Exception as insert_error:
+            print(f"⚠️ Error inserting check-in record: {insert_error}")
+            import traceback
+            traceback.print_exc()
+            error_msg = str(insert_error)
+            # Check for specific database errors
+            if "foreign key" in error_msg.lower() or "violates foreign key" in error_msg.lower():
+                if "teacher_id" in error_msg.lower() or "user_id" in error_msg.lower():
+                    return jsonify({
+                        "error": "Database constraint violation",
+                        "message": f"Teacher/User ID {teacher_id} does not exist in the users table. Please ensure the user is registered in the system.",
+                        "details": error_msg
+                    }), 400
+                elif "child_id" in error_msg.lower():
+                    return jsonify({
+                        "error": "Database constraint violation",
+                        "message": f"Child ID {child_id} does not exist in the children table.",
+                        "details": error_msg
+                    }), 400
+            return jsonify({
+                "error": "Failed to create check-in record",
+                "message": error_msg
+            }), 500
 
         # Update booking status if booking_id exists
         if booking_id:

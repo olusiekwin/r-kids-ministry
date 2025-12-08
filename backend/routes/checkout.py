@@ -236,7 +236,29 @@ def release_child(child_id: str):
         )
 
         if not checkin_res.data:
-            return jsonify({"error": "Child is not checked in"}), 404
+            # Check if child has any check-ins today (might be already checked out)
+            all_today_checkins = (
+                client.table("check_in_records")
+                .select("timestamp_in, timestamp_out")
+                .eq("child_id", child_id)
+                .eq("church_id", church_id)
+                .gte("timestamp_in", today)
+                .order("timestamp_in", desc=True)
+                .limit(5)
+                .execute()
+            )
+            
+            if all_today_checkins.data:
+                # Child has check-ins today but all are checked out
+                return jsonify({
+                    "error": "Child is not currently checked in",
+                    "message": "Child has already been checked out or has no active check-in record for today"
+                }), 404
+            else:
+                return jsonify({
+                    "error": "Child is not checked in",
+                    "message": f"No check-in record found for child {child_id} today"
+                }), 404
 
         record = checkin_res.data[0]
         record_id = record["record_id"]
