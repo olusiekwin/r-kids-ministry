@@ -158,8 +158,19 @@ export default function CheckIn() {
             >
               ← Back to Dashboard
             </button>
-            <h1 className="text-2xl font-semibold mb-2">Session Check-In</h1>
-            <p className="text-muted-foreground">Select a session and check in children</p>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-2xl font-semibold mb-2">Session Check-In</h1>
+                <p className="text-muted-foreground">Select a session and check in children</p>
+              </div>
+              <button
+                onClick={() => navigate('/teacher/active-checkins')}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <Users className="w-4 h-4" />
+                View Active Check-Ins
+              </button>
+            </div>
           </div>
           
           {/* Session Selection */}

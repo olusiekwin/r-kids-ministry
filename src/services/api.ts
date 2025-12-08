@@ -417,6 +417,7 @@ export const checkInApi = {
         method: 'POST',
         body: JSON.stringify({ 
           otp_code: otpCode,
+          child_id: childId, // Include child_id for cases without session
           session_id: sessionId,
           teacher_id: teacherId,
         }),
@@ -432,6 +433,10 @@ export const checkInApi = {
         body: JSON.stringify({ child_id: childId }),
       }
     );
+  },
+
+  getActive: async () => {
+    return apiRequest<any[]>(API_ENDPOINTS.CHECKIN.ACTIVE);
   },
 
   confirm: async (qrCode: string, method: 'qr' | 'otp' | 'manual', sessionId?: string) => {

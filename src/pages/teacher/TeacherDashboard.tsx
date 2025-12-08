@@ -268,6 +268,20 @@ export default function TeacherDashboard() {
               <h3 className="text-lg font-semibold mb-2">Send Pickup</h3>
               <p className="text-sm text-muted-foreground">Notify parents when children are ready for pickup</p>
             </button>
+
+            <button
+              onClick={() => navigate('/teacher/active-checkins')}
+              className="bg-card border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-all hover:scale-[1.02] text-left group"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 rounded-lg bg-blue-500/10">
+                  <CheckCircle2 className="w-6 h-6 text-blue-500" />
+                </div>
+                <ArrowRight className="w-5 h-5 text-muted-foreground group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Active Check-Ins</h3>
+              <p className="text-sm text-muted-foreground">View and manage children currently in session</p>
+            </button>
         </div>
 
           {/* Group Selection */}

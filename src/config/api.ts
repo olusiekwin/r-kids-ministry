@@ -60,6 +60,7 @@ export const API_ENDPOINTS = {
     VERIFY_OTP: '/checkin/verify-otp',
     GENERATE_QR: '/checkin/generate-qr',
     STATUS: (childId: string) => `/checkin/status/${childId}`,
+    ACTIVE: '/checkin/active',
   },
 
   CHECKOUT: {

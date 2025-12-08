@@ -28,6 +28,7 @@ import Children from "./pages/admin/Children";
 import CheckIns from "./pages/admin/CheckIns";
 import TeacherDashboard from "./pages/teacher/TeacherDashboard";
 import CheckIn from "./pages/teacher/CheckIn";
+import ActiveCheckIns from "./pages/teacher/ActiveCheckIns";
 import ManualCheckIn from "./pages/teacher/ManualCheckIn";
 import AddChildToGroup from "./pages/teacher/AddChildToGroup";
 import GuardianAuthorize from "./pages/teacher/GuardianAuthorize";
@@ -86,6 +87,7 @@ const App = () => (
             {/* Teacher Routes */}
             <Route path="/teacher" element={<ProtectedRoute requiredRole="teacher"><TeacherDashboard /></ProtectedRoute>} />
             <Route path="/teacher/checkin" element={<ProtectedRoute requiredRole="teacher"><CheckIn /></ProtectedRoute>} />
+            <Route path="/teacher/active-checkins" element={<ProtectedRoute requiredRole="teacher"><ActiveCheckIns /></ProtectedRoute>} />
             {/* Teachers cannot add children - that's the parent's responsibility */}
             <Route path="/teacher/guardian-authorize" element={<ProtectedRoute requiredRole="teacher"><GuardianAuthorize /></ProtectedRoute>} />
             <Route path="/teacher/guardian-authorize/:childId" element={<ProtectedRoute requiredRole="teacher"><GuardianAuthorize /></ProtectedRoute>} />
