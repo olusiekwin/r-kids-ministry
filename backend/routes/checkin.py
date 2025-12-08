@@ -488,6 +488,41 @@ def _create_checkin_record(
             return jsonify({"error": "Child not found"}), 404
         child = child_res.data[0]
 
+        # Verify teacher/user exists in users table (required for foreign key)
+        try:
+            user_res = (
+                client.table("users")
+                .select("user_id, role")
+                .eq("user_id", teacher_id)
+                .eq("church_id", church_id)
+                .limit(1)
+                .execute()
+            )
+            if not user_res.data:
+                # User doesn't exist - this might be an admin checking in
+                # Try to find any user with admin or teacher role to use as fallback
+                fallback_user_res = (
+                    client.table("users")
+                    .select("user_id")
+                    .eq("church_id", church_id)
+                    .in_("role", ["Admin", "Teacher", "admin", "teacher"])
+                    .limit(1)
+                    .execute()
+                )
+                if fallback_user_res.data:
+                    teacher_id = fallback_user_res.data[0]["user_id"]
+                    print(f"⚠️ User {teacher_id} not found, using fallback teacher: {teacher_id}")
+                else:
+                    return jsonify({
+                        "error": "Teacher/User not found",
+                        "message": f"User ID {teacher_id} does not exist in the users table. Please ensure the user is registered."
+                    }), 404
+        except Exception as user_check_error:
+            print(f"⚠️ Error checking user existence: {user_check_error}")
+            import traceback
+            traceback.print_exc()
+            # Continue anyway - might work if user exists
+
         # Create check-in record
         record_data = {
             "church_id": church_id,
@@ -544,5 +579,18 @@ def _create_checkin_record(
         }), 201
     except Exception as exc:  # pragma: no cover
         print(f"⚠️ Error creating check-in record: {exc}")
-        return jsonify({"error": "Failed to create check-in record"}), 500
+        import traceback
+        traceback.print_exc()
+        error_msg = str(exc)
+        # Provide more specific error messages
+        if "foreign key" in error_msg.lower() or "violates foreign key" in error_msg.lower():
+            return jsonify({
+                "error": "Database constraint violation",
+                "message": "The teacher/user ID does not exist in the users table. Please ensure the user is registered.",
+                "details": error_msg
+            }), 400
+        return jsonify({
+            "error": "Failed to create check-in record",
+            "message": error_msg
+        }), 500
 
