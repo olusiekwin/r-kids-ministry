@@ -219,8 +219,9 @@ def manual_checkin():
         except Exception as e:
             print(f"⚠️ Error fetching child's parent: {e}")
 
+    # Use "PARENT_ID" method for manual check-in (matches database constraint)
     return _create_checkin_record(
-        child_id, guardian_id, teacher_id, "manual",
+        child_id, guardian_id, teacher_id, "PARENT_ID",
         session_id=session_id, booking_id=booking_id
     )
 
