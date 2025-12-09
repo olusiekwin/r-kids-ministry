@@ -388,7 +388,7 @@ export default function SessionDetails() {
                 {session.gender_restriction && ` • ${session.gender_restriction} only`}
               </span>
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {eligibleChildren.map((child) => {
                 const booking = bookings.find(b => b.child_id === child.id);
                 const isBooked = booking && ['booked', 'checked_in'].includes(booking.status);
@@ -400,23 +400,61 @@ export default function SessionDetails() {
                       isBooked ? 'border-green-500/50 bg-green-50/50' : 'border-border'
                     }`}
                   >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <p className="font-mono text-xs text-muted-foreground mb-1">
-                          {child.registration_id}
-                        </p>
-                        <h3 className="font-semibold">{child.name}</h3>
-                        <div className="text-sm text-muted-foreground mt-2 space-y-1">
-                          <p><span className="font-medium">Age:</span> {calculateAge(child.dateOfBirth)}</p>
-                          {child.gender && (
-                            <p><span className="font-medium">Gender:</span> {child.gender}</p>
+                    <div className="space-y-3">
+                      {/* Header */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg">{child.name}</h3>
+                          <p className="font-mono text-xs text-muted-foreground mt-1">
+                            {child.registration_id}
+                          </p>
+                        </div>
+                        {isBooked && (
+                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                            Booked
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Child Details Grid */}
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Age:</span>
+                          <p className="font-medium">{calculateAge(child.dateOfBirth)}</p>
+                        </div>
+                        {child.gender && (
+                          <div>
+                            <span className="text-muted-foreground">Gender:</span>
+                            <p className="font-medium">{child.gender}</p>
+                          </div>
+                        )}
+                        {child.dateOfBirth && (
+                          <div className="col-span-2">
+                            <span className="text-muted-foreground">Date of Birth:</span>
+                            <p className="font-medium">
+                              {new Date(child.dateOfBirth).toLocaleDateString()}
+                            </p>
+                          </div>
+                        )}
+                        {child.group_name && (
+                          <div className="col-span-2">
+                            <span className="text-muted-foreground">Group:</span>
+                            <p className="font-medium">{child.group_name}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Parent/Guardian Info */}
+                      {child.guardian_name && (
+                        <div className="pt-2 border-t border-border/50">
+                          <p className="text-xs text-muted-foreground mb-1">Parent/Guardian:</p>
+                          <p className="font-medium text-sm">{child.guardian_name}</p>
+                          {child.parent_registration_id && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              ID: {child.parent_registration_id}
+                            </p>
                           )}
                         </div>
-                      </div>
-                      {isBooked && (
-                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
-                          Booked
-                        </span>
                       )}
                     </div>
                   </div>
@@ -456,64 +494,101 @@ export default function SessionDetails() {
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                     {/* Child Details Section */}
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {/* Child Info */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-muted-foreground" />
-                          <h3 className="font-bold text-lg">{booking.child_name}</h3>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="font-mono text-xs bg-muted px-2 py-1 rounded">
-                            {booking.registration_id}
-                          </span>
-                          {booking.group_name && (
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                              {booking.group_name}
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Child Info - Comprehensive */}
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <User className="w-5 h-5 text-muted-foreground" />
+                            <h3 className="font-bold text-xl">{booking.child_name}</h3>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm mb-3">
+                            <span className="font-mono text-xs bg-muted px-3 py-1.5 rounded">
+                              {booking.registration_id}
                             </span>
-                          )}
+                            {booking.group_name && (
+                              <span className="px-3 py-1.5 bg-blue-100 text-blue-800 rounded text-sm font-medium">
+                                {booking.group_name}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground mt-2">
-                          {booking.date_of_birth && (
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              <span>Age: {calculateAge(booking.date_of_birth)}</span>
-                            </div>
-                          )}
-                          {booking.gender && (
-                            <div className="flex items-center gap-1">
-                              <Baby className="w-3 h-3" />
-                              <span>{booking.gender}</span>
-                            </div>
-                          )}
-                          {booking.date_of_birth && (
-                            <div className="col-span-2 text-xs">
-                              DOB: {new Date(booking.date_of_birth).toLocaleDateString()}
-                            </div>
-                          )}
+
+                        {/* Child Details Grid */}
+                        <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                          <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                            Child Details
+                          </h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            {booking.date_of_birth && (
+                              <>
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-1">Age</p>
+                                  <p className="font-semibold text-base">
+                                    {calculateAge(booking.date_of_birth)}
+                                  </p>
+                                </div>
+                                {booking.gender && (
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">Gender</p>
+                                    <p className="font-semibold text-base">{booking.gender}</p>
+                                  </div>
+                                )}
+                                <div className="col-span-2">
+                                  <p className="text-xs text-muted-foreground mb-1">Date of Birth</p>
+                                  <p className="font-semibold text-base">
+                                    {new Date(booking.date_of_birth).toLocaleDateString('en-US', {
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric'
+                                    })}
+                                  </p>
+                                </div>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
 
-                      {/* Guardian Info */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4 text-muted-foreground" />
-                          <h4 className="font-semibold">Guardian</h4>
+                      {/* Parent/Guardian Info - Comprehensive */}
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <Users className="w-5 h-5 text-muted-foreground" />
+                            <h4 className="font-bold text-lg">Parent/Guardian</h4>
+                          </div>
                         </div>
-                        <div className="text-sm space-y-1">
-                          <p className="font-medium">{booking.guardian_name || 'N/A'}</p>
-                          {booking.guardian_email && (
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <Mail className="w-3 h-3" />
-                              <span className="text-xs">{booking.guardian_email}</span>
+
+                        <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                          <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+                            Contact Information
+                          </h4>
+                          <div className="space-y-3">
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1">Name</p>
+                              <p className="font-semibold text-base">
+                                {booking.guardian_name || 'Not Available'}
+                              </p>
                             </div>
-                          )}
-                          {booking.guardian_phone && (
-                            <div className="flex items-center gap-1 text-muted-foreground">
-                              <Phone className="w-3 h-3" />
-                              <span className="text-xs">{booking.guardian_phone}</span>
-                            </div>
-                          )}
+                            {booking.guardian_email && (
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">Email</p>
+                                <div className="flex items-center gap-2">
+                                  <Mail className="w-4 h-4 text-muted-foreground" />
+                                  <p className="font-medium text-sm">{booking.guardian_email}</p>
+                                </div>
+                              </div>
+                            )}
+                            {booking.guardian_phone && (
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">Phone</p>
+                                <div className="flex items-center gap-2">
+                                  <Phone className="w-4 h-4 text-muted-foreground" />
+                                  <p className="font-medium text-sm">{booking.guardian_phone}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
 
