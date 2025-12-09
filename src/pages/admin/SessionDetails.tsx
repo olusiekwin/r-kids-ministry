@@ -151,7 +151,7 @@ export default function SessionDetails() {
       if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
         age--;
       }
-      return `${age} years`;
+      return age.toString(); // Just return the number
     } catch {
       return 'N/A';
     }
@@ -190,6 +190,7 @@ export default function SessionDetails() {
     try {
       await checkOutApi.release(booking.child_id, booking.guardian_id || '', '');
       await loadBookings();
+      await loadEligibleChildren(); // Refresh eligible children too
       toast.success('Check-out successful', {
         description: `${booking.child_name} has been checked out.`,
       });
@@ -197,6 +198,34 @@ export default function SessionDetails() {
       console.error('Check-out failed:', error);
       toast.error('Check-out failed', {
         description: error.message || 'Failed to check out child.',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCheckInEligibleChild = async (child: EligibleChild) => {
+    if (!user?.id || !sessionId) {
+      toast.error('Authentication required');
+      return;
+    }
+
+    setActionLoading(child.id);
+    try {
+      // Check in the child - this will create a check-in record
+      await checkInApi.manual(child.id, sessionId, user.id);
+      
+      // Refresh both bookings and eligible children to show updated status
+      await loadBookings();
+      await loadEligibleChildren();
+      
+      toast.success('Check-in successful', {
+        description: `${child.name} has been checked in for this session.`,
+      });
+    } catch (error: any) {
+      console.error('Check-in failed:', error);
+      toast.error('Check-in failed', {
+        description: error.message || 'Failed to check in child.',
       });
     } finally {
       setActionLoading(null);
@@ -420,7 +449,7 @@ export default function SessionDetails() {
                       <div className="grid grid-cols-2 gap-3 text-sm">
                         <div>
                           <span className="text-muted-foreground">Age:</span>
-                          <p className="font-medium">{calculateAge(child.dateOfBirth)}</p>
+                          <p className="font-medium">{calculateAge(child.dateOfBirth)} years</p>
                         </div>
                         {child.gender && (
                           <div>
@@ -454,6 +483,29 @@ export default function SessionDetails() {
                               ID: {child.parent_registration_id}
                             </p>
                           )}
+                        </div>
+                      )}
+
+                      {/* Check-in Button for Eligible Children */}
+                      {!isBooked && (
+                        <div className="pt-3 border-t border-border/50">
+                          <button
+                            onClick={() => handleCheckInEligibleChild(child)}
+                            disabled={actionLoading === child.id}
+                            className="btn-primary w-full flex items-center justify-center gap-2 px-4 py-2 text-sm"
+                          >
+                            {actionLoading === child.id ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Checking In...
+                              </>
+                            ) : (
+                              <>
+                                <LogIn className="w-4 h-4" />
+                                Check In Child
+                              </>
+                            )}
+                          </button>
                         </div>
                       )}
                     </div>
@@ -525,7 +577,7 @@ export default function SessionDetails() {
                                 <div>
                                   <p className="text-xs text-muted-foreground mb-1">Age</p>
                                   <p className="font-semibold text-base">
-                                    {calculateAge(booking.date_of_birth)}
+                                    {calculateAge(booking.date_of_birth)} years
                                   </p>
                                 </div>
                                 {booking.gender && (
