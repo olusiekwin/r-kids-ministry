@@ -5,7 +5,7 @@ import { Footer } from '@/components/Footer';
 import { MobileNav } from '@/components/MobileNav';
 import { ParentImageUpload } from '@/components/ParentImageUpload';
 import { ParentImageModal } from '@/components/ParentImageModal';
-import { parentsApi, checkInApi, checkOutApi, sessionsApi, sessionBookingsApi, childrenApi, groupsApi } from '@/services/api';
+import { parentsApi, checkInApi, checkOutApi, sessionsApi, sessionBookingsApi } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from '@/components/ui/sonner';
@@ -65,6 +65,7 @@ interface ChildDetail {
   } | null;
   status: string;
   photoUrl?: string;
+  gender?: 'Male' | 'Female' | 'Other';
 }
 
 export default function ParentProfile() {
@@ -81,7 +82,6 @@ export default function ParentProfile() {
   const [showCheckOutModal, setShowCheckOutModal] = useState(false);
   const [showActivateModal, setShowActivateModal] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
-  const [showEditChildModal, setShowEditChildModal] = useState(false);
   const [selectedChild, setSelectedChild] = useState<ChildDetail | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   
@@ -89,16 +89,6 @@ export default function ParentProfile() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [selectedSession, setSelectedSession] = useState<any | null>(null);
   const [loadingSessions, setLoadingSessions] = useState(false);
-  
-  // Edit child modal
-  const [editFormData, setEditFormData] = useState({
-    name: '',
-    dateOfBirth: '',
-    gender: '' as 'Male' | 'Female' | 'Other' | '',
-    groupId: '',
-  });
-  const [groups, setGroups] = useState<any[]>([]);
-  const [editError, setEditError] = useState('');
 
   useEffect(() => {
     if (parentId) {
@@ -114,17 +104,6 @@ export default function ParentProfile() {
     }
   }, [showCheckInModal, showCheckOutModal]);
   
-  useEffect(() => {
-    if (showEditChildModal && selectedChild) {
-      setEditFormData({
-        name: selectedChild.name || '',
-        dateOfBirth: selectedChild.dateOfBirth || '',
-        gender: (selectedChild as any).gender || '',
-        groupId: selectedChild.group?.id || '',
-      });
-    }
-  }, [showEditChildModal, selectedChild]);
-  
   const loadTodaySessions = async () => {
     try {
       setLoadingSessions(true);
@@ -136,53 +115,6 @@ export default function ParentProfile() {
       setSessions([]);
     } finally {
       setLoadingSessions(false);
-    }
-  };
-  
-  const loadGroups = async () => {
-    try {
-      const data = await groupsApi.list();
-      setGroups(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error('Failed to load groups:', error);
-      setGroups([]);
-    }
-  };
-  
-  const handleEditChild = async () => {
-    if (!selectedChild) return;
-    
-    setActionLoading(selectedChild.id);
-    setEditError('');
-    
-    try {
-      const updateData: any = {
-        name: editFormData.name,
-        dateOfBirth: editFormData.dateOfBirth,
-      };
-      
-      if (editFormData.gender) {
-        updateData.gender = editFormData.gender;
-      }
-      
-      if (editFormData.groupId) {
-        updateData.group_id = editFormData.groupId;
-      } else if (editFormData.groupId === '') {
-        updateData.group_id = null;
-      }
-      
-      await childrenApi.update(selectedChild.id, updateData);
-      await loadParentDetails();
-      setShowEditChildModal(false);
-      setSelectedChild(null);
-      toast.success('Child updated successfully', {
-        description: `${editFormData.name}'s details have been updated.`,
-      });
-    } catch (error: any) {
-      console.error('Failed to update child:', error);
-      setEditError(error.message || 'Failed to update child. Please try again.');
-    } finally {
-      setActionLoading(null);
     }
   };
 
@@ -601,32 +533,24 @@ export default function ParentProfile() {
                       </div>
                     )}
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-2">
                         <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded">
                           {child.registrationId}
                         </span>
-                        <h3 className="font-semibold text-foreground">{child.name}</h3>
                       </div>
                       <div className="text-sm text-muted-foreground space-y-1">
-                        <p>Age: {calculateAge(child.dateOfBirth)}</p>
+                        <p><span className="font-medium">Name:</span> <span className="text-foreground font-semibold">{child.name}</span></p>
+                        <p><span className="font-medium">Age:</span> {calculateAge(child.dateOfBirth)}</p>
                         {child.group && (
-                          <p>Group: <span className="font-medium">{child.group.name}</span></p>
+                          <p><span className="font-medium">Group:</span> {child.group.name}</p>
                         )}
-                        <p>DOB: {formatDate(child.dateOfBirth)}</p>
+                        {child.gender && (
+                          <p><span className="font-medium">Gender:</span> {child.gender}</p>
+                        )}
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 pt-4 border-t border-border">
-                    <button
-                      onClick={() => {
-                        setSelectedChild(child);
-                        setShowEditChildModal(true);
-                      }}
-                      className="btn-secondary flex items-center justify-center gap-2 text-sm py-2 px-3"
-                      title="Edit child details"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
                     <button
                       onClick={() => {
                         setSelectedChild(child);
@@ -931,106 +855,6 @@ export default function ParentProfile() {
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Edit Child Modal */}
-        <AlertDialog open={showEditChildModal} onOpenChange={(open) => {
-          setShowEditChildModal(open);
-          if (!open) {
-            setSelectedChild(null);
-            setEditError('');
-          }
-        }}>
-          <AlertDialogContent className="max-w-md">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Edit Child Details</AlertDialogTitle>
-              <AlertDialogDescription>
-                Update information for <strong>{selectedChild?.name}</strong>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            
-            <div className="py-4 space-y-4">
-              {editError && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3 text-sm text-red-800 dark:text-red-200">
-                  {editError}
-                </div>
-              )}
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Name</label>
-                <input
-                  type="text"
-                  value={editFormData.name}
-                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-border rounded-md bg-background"
-                  placeholder="Child's full name"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Date of Birth</label>
-                <input
-                  type="date"
-                  value={editFormData.dateOfBirth}
-                  onChange={(e) => setEditFormData({ ...editFormData, dateOfBirth: e.target.value })}
-                  className="w-full px-3 py-2 border border-border rounded-md bg-background"
-                  max={new Date().toISOString().split('T')[0]}
-                />
-                {editFormData.dateOfBirth && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Age: {calculateAge(editFormData.dateOfBirth)} years old
-                  </p>
-                )}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Gender</label>
-                <select
-                  value={editFormData.gender}
-                  onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value as 'Male' | 'Female' | 'Other' })}
-                  className="w-full px-3 py-2 border border-border rounded-md bg-background"
-                >
-                  <option value="">Select gender</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Group (Optional)</label>
-                <select
-                  value={editFormData.groupId}
-                  onChange={(e) => setEditFormData({ ...editFormData, groupId: e.target.value })}
-                  className="w-full px-3 py-2 border border-border rounded-md bg-background"
-                >
-                  <option value="">No group</option>
-                  {groups.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleEditChild}
-                disabled={actionLoading !== null}
-                className="bg-foreground text-background"
-              >
-                {actionLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin inline" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Changes'
-                )}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </main>
 
       <Footer />
