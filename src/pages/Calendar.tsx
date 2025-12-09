@@ -205,7 +205,7 @@ export default function Calendar() {
                 onClick={() => {
                   if (user?.role === 'parent') {
                     navigate(`/parent/book-session?sessionId=${session.id}`);
-                  } else {
+                  } else if (user?.role === 'admin' || user?.role === 'teacher') {
                     // Admin/Teacher can view session details
                     navigate(`/sessions/${session.id}`);
                   }

@@ -41,6 +41,7 @@ import PreCheckOut from "./pages/parent/PreCheckOut";
 import Notifications from "./pages/parent/Notifications";
 import BookSession from "./pages/parent/BookSession";
 import Calendar from "./pages/Calendar";
+import SessionDetails from "./pages/admin/SessionDetails";
 import TeenDashboard from "./pages/teen/TeenDashboard";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -107,6 +108,7 @@ const App = () => (
             
             {/* Calendar Route (for all roles) */}
             <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+            <Route path="/sessions/:sessionId" element={<ProtectedRoute requiredRole="admin"><SessionDetails /></ProtectedRoute>} />
             
             {/* Notifications Route (for all roles) */}
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />

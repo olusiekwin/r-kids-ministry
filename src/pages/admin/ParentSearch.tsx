@@ -5,7 +5,7 @@ import { Footer } from '@/components/Footer';
 import { MobileNav } from '@/components/MobileNav';
 import { ParentImageModal } from '@/components/ParentImageModal';
 import { parentsApi } from '@/services/api';
-import { Search, Plus, Mail, Phone, Users, Loader2, XCircle, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Activity, Grid3x3, List, Eye } from 'lucide-react';
+import { Search, Plus, Mail, Phone, Users, Loader2, XCircle, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Activity, Grid3x3, List, Eye, Calendar } from 'lucide-react';
 
 interface ParentSearchResult {
   id: string;
@@ -193,6 +193,13 @@ export default function ParentSearch() {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => navigate('/calendar')}
+                className="btn-primary flex items-center gap-2 px-6 py-3 text-base font-semibold w-full sm:w-auto whitespace-nowrap"
+              >
+                <Calendar className="w-5 h-5" />
+                Create Session
+              </button>
               <button
                 onClick={() => navigate('/admin/activity-tracking')}
                 className="btn-secondary flex items-center gap-2 px-6 py-3 text-base font-semibold w-full sm:w-auto whitespace-nowrap"
