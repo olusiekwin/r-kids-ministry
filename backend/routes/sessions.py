@@ -170,7 +170,7 @@ def get_session(session_id: str):
     try:
         res = (
             client.table("sessions")
-            .select("*, groups(name, room), users(name, email)")
+            .select("*, groups(name, room)")
             .eq("session_id", session_id)
             .eq("church_id", church_id)
             .execute()
@@ -181,7 +181,19 @@ def get_session(session_id: str):
         
         row = res.data[0]
         group = row.get("groups")
-        teacher = row.get("users")
+        teacher_id = row.get("teacher_id")
+        created_by_id = row.get("created_by")
+        
+        # Get teacher name separately
+        teacher_name = None
+        if teacher_id:
+            try:
+                teacher_res = client.table("users").select("name").eq("user_id", teacher_id).execute()
+                if teacher_res.data:
+                    teacher_name = teacher_res.data[0].get("name")
+            except:
+                pass
+        
         return jsonify({
             "data": {
                 "id": row["session_id"],
@@ -193,12 +205,13 @@ def get_session(session_id: str):
                 "group_id": row.get("group_id"),
                 "group_name": group.get("name") if group else None,
                 "room": group.get("room") if group else None,
-                "teacher_id": row.get("teacher_id"),
-                "teacher_name": teacher.get("name") if teacher else None,
+                "teacher_id": teacher_id,
+                "teacher_name": teacher_name,
                 "session_type": row.get("session_type", "Regular"),
                 "location": row.get("location"),
                 "is_recurring": row.get("is_recurring", False),
                 "recurrence_pattern": row.get("recurrence_pattern"),
+                "gender_restriction": row.get("gender_restriction"),
             }
         })
     except Exception as exc:  # pragma: no cover
@@ -286,4 +299,74 @@ def delete_session(session_id: str):
     except Exception as exc:  # pragma: no cover
         print(f"⚠️ Error deleting session: {exc}")
         return jsonify({"error": "Failed to delete session"}), 500
+
+
+@sessions_bp.get("/<session_id>/eligible-children")
+def get_eligible_children(session_id: str):
+    """Auto-fetch children eligible for session based on group and gender restriction."""
+    client = get_supabase()
+    if client is None:
+        return jsonify({"error": "Supabase not configured"}), 500
+
+    church_id = get_default_church_id()
+    if church_id is None:
+        return jsonify({"error": "No church configured"}), 500
+
+    try:
+        # Get session details
+        session_res = (
+            client.table("sessions")
+            .select("group_id, gender_restriction")
+            .eq("session_id", session_id)
+            .eq("church_id", church_id)
+            .execute()
+        )
+        
+        if not session_res.data:
+            return jsonify({"error": "Session not found"}), 404
+        
+        session = session_res.data[0]
+        group_id = session.get("group_id")
+        gender_restriction = session.get("gender_restriction")
+        
+        if not group_id:
+            return jsonify({"data": []})
+        
+        # Build query for children in the group
+        query = (
+            client.table("children")
+            .select("*, groups(name), guardians(name, parent_id)")
+            .eq("church_id", church_id)
+            .eq("group_id", group_id)
+        )
+        
+        # Apply gender restriction if specified
+        if gender_restriction:
+            query = query.eq("gender", gender_restriction)
+        
+        res = query.execute()
+        
+        children = []
+        for row in res.data or []:
+            group = row.get("groups")
+            guardian = row.get("guardians")
+            children.append({
+                "id": row["child_id"],
+                "registration_id": row.get("registration_id"),
+                "name": row.get("name"),
+                "date_of_birth": row.get("date_of_birth"),
+                "gender": row.get("gender"),
+                "group_id": row.get("group_id"),
+                "group_name": group.get("name") if group else None,
+                "parent_id": row.get("parent_id"),
+                "guardian_name": guardian.get("name") if guardian else None,
+                "parent_registration_id": guardian.get("parent_id") if guardian else None,
+            })
+        
+        return jsonify({"data": children})
+    except Exception as exc:  # pragma: no cover
+        import traceback
+        print(f"⚠️ Error getting eligible children: {exc}")
+        print(traceback.format_exc())
+        return jsonify({"error": "Failed to get eligible children"}), 500
 

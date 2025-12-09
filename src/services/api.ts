@@ -886,6 +886,10 @@ export const sessionsApi = {
       method: 'DELETE',
     });
   },
+
+  getEligibleChildren: async (sessionId: string) => {
+    return apiRequest<any[]>(API_ENDPOINTS.SESSIONS.ELIGIBLE_CHILDREN(sessionId));
+  },
 };
 
 // Session Bookings API

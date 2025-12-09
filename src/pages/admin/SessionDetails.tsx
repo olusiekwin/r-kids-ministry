@@ -35,6 +35,18 @@ interface Session {
   teacher_name?: string;
   session_type: string;
   location?: string;
+  gender_restriction?: 'Male' | 'Female';
+}
+
+interface EligibleChild {
+  id: string;
+  registration_id: string;
+  name: string;
+  date_of_birth: string;
+  gender?: 'Male' | 'Female' | 'Other';
+  group_name?: string;
+  parent_registration_id?: string;
+  guardian_name?: string;
 }
 
 interface Booking {
@@ -59,6 +71,7 @@ export default function SessionDetails() {
   const { user } = useAuth();
   const [session, setSession] = useState<Session | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [eligibleChildren, setEligibleChildren] = useState<EligibleChild[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -68,6 +81,12 @@ export default function SessionDetails() {
       loadBookings();
     }
   }, [sessionId]);
+
+  useEffect(() => {
+    if (session) {
+      loadEligibleChildren();
+    }
+  }, [session]);
 
   const loadSessionDetails = async () => {
     if (!sessionId) return;
@@ -97,6 +116,34 @@ export default function SessionDetails() {
       toast.error('Failed to load bookings', {
         description: error.message || 'Please try again.',
       });
+    }
+  };
+
+  const loadEligibleChildren = async () => {
+    if (!sessionId) return;
+    
+    try {
+      const data = await sessionsApi.getEligibleChildren(sessionId);
+      setEligibleChildren(Array.isArray(data) ? data : []);
+    } catch (error: any) {
+      console.error('Failed to load eligible children:', error);
+      // Don't show toast, it's optional
+    }
+  };
+
+  const calculateAge = (dateOfBirth: string) => {
+    if (!dateOfBirth) return 'N/A';
+    try {
+      const dob = new Date(dateOfBirth);
+      const today = new Date();
+      let age = today.getFullYear() - dob.getFullYear();
+      const monthDiff = today.getMonth() - dob.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+        age--;
+      }
+      return `${age} years`;
+    } catch {
+      return 'N/A';
     }
   };
 
@@ -216,9 +263,16 @@ export default function SessionDetails() {
           <div className="flex items-start justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold text-foreground mb-2">{session.title}</h1>
-              <span className="inline-block px-3 py-1 bg-muted rounded-full text-sm font-medium">
-                {session.session_type}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="inline-block px-3 py-1 bg-muted rounded-full text-sm font-medium">
+                  {session.session_type}
+                </span>
+                {session.gender_restriction && (
+                  <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                    {session.gender_restriction} Only
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -312,6 +366,55 @@ export default function SessionDetails() {
             </div>
           </div>
         </div>
+
+        {/* Eligible Children (Auto-fetched based on session preferences) */}
+        {eligibleChildren.length > 0 && (
+          <div className="bg-background border-2 border-border rounded-xl p-6 shadow-lg mb-6">
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Eligible Children ({eligibleChildren.length})
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                {session.group_name && `from ${session.group_name}`}
+                {session.gender_restriction && ` • ${session.gender_restriction} only`}
+              </span>
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {eligibleChildren.map((child) => {
+                const booking = bookings.find(b => b.child_id === child.id);
+                const isBooked = booking && ['booked', 'checked_in'].includes(booking.status);
+                
+                return (
+                  <div
+                    key={child.id}
+                    className={`border-2 rounded-lg p-4 ${
+                      isBooked ? 'border-green-500/50 bg-green-50/50' : 'border-border'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1">
+                        <p className="font-mono text-xs text-muted-foreground mb-1">
+                          {child.registration_id}
+                        </p>
+                        <h3 className="font-semibold">{child.name}</h3>
+                        <div className="text-sm text-muted-foreground mt-2 space-y-1">
+                          <p><span className="font-medium">Age:</span> {calculateAge(child.dateOfBirth)}</p>
+                          {child.gender && (
+                            <p><span className="font-medium">Gender:</span> {child.gender}</p>
+                          )}
+                        </div>
+                      </div>
+                      {isBooked && (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                          Booked
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Bookings List */}
         <div className="bg-background border-2 border-border rounded-xl p-6 shadow-lg">

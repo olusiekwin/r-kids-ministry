@@ -5,7 +5,7 @@ import { Footer } from '@/components/Footer';
 import { MobileNav } from '@/components/MobileNav';
 import { ParentImageModal } from '@/components/ParentImageModal';
 import { parentsApi } from '@/services/api';
-import { Search, Plus, Mail, Phone, Users, Loader2, XCircle, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Activity, Grid3x3, List, Eye, Calendar } from 'lucide-react';
+import { Search, Plus, Mail, Phone, Users, Loader2, XCircle, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Activity, Grid3x3, List, Eye, Calendar, ChevronDown } from 'lucide-react';
 
 interface ParentSearchResult {
   id: string;
@@ -193,13 +193,29 @@ export default function ParentSearch() {
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={() => navigate('/calendar')}
-                className="btn-primary flex items-center gap-2 px-6 py-3 text-base font-semibold w-full sm:w-auto whitespace-nowrap"
-              >
-                <Calendar className="w-5 h-5" />
-                Create Session
-              </button>
+              <div className="relative group">
+                <button className="btn-primary flex items-center gap-2 px-6 py-3 text-base font-semibold w-full sm:w-auto whitespace-nowrap">
+                  <Calendar className="w-5 h-5" />
+                  Sessions
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+                <div className="absolute right-0 mt-2 w-48 bg-background border-2 border-border rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                  <button
+                    onClick={() => navigate('/calendar')}
+                    className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create Session
+                  </button>
+                  <button
+                    onClick={() => navigate('/calendar')}
+                    className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors flex items-center gap-2 border-t border-border"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    View All Sessions
+                  </button>
+                </div>
+              </div>
               <button
                 onClick={() => navigate('/admin/activity-tracking')}
                 className="btn-secondary flex items-center gap-2 px-6 py-3 text-base font-semibold w-full sm:w-auto whitespace-nowrap"
