@@ -11,9 +11,9 @@ export function AdminSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Only show Parent Search - other links disabled for focused workflow
   const menuItems: SidebarItem[] = [
     { label: 'Parent Search & Management', path: '/admin' },
+    { label: 'Sessions Calendar', path: '/calendar' },
   ];
 
   const isActive = (path: string) => {
