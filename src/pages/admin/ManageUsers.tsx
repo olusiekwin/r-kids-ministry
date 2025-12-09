@@ -6,15 +6,19 @@ import { AdminSidebar } from '@/components/AdminSidebar';
 import { usersApi, parentsApi } from '@/services/api';
 import { User, Parent } from '@/types';
 import { toast } from '@/components/ui/sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
-type UserType = 'teacher' | 'teen' | 'parent';
+type UserType = 'teacher' | 'teen' | 'parent' | 'admin';
 
 export default function ManageUsers() {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
+  const isSuperAdmin = currentUser?.role === 'super_admin';
   const [activeTab, setActiveTab] = useState<UserType>('teacher');
   const [teachers, setTeachers] = useState<User[]>([]);
   const [teens, setTeens] = useState<User[]>([]);
   const [parents, setParents] = useState<Parent[]>([]);
+  const [admins, setAdmins] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -36,6 +40,11 @@ export default function ManageUsers() {
       if (activeTab === 'parent') {
         const data = await parentsApi.list();
         setParents(data);
+      } else if (activeTab === 'admin') {
+        // Load both admin and super_admin roles
+        const adminData = await usersApi.listByRole('admin');
+        const superAdminData = await usersApi.listByRole('super_admin');
+        setAdmins([...adminData, ...superAdminData]);
       } else {
         const data = await usersApi.listByRole(activeTab);
         if (activeTab === 'teacher') {
@@ -48,6 +57,7 @@ export default function ManageUsers() {
       console.error('Failed to load users:', error);
       if (activeTab === 'teacher') setTeachers([]);
       else if (activeTab === 'teen') setTeens([]);
+      else if (activeTab === 'admin') setAdmins([]);
       else setParents([]);
     } finally {
       setLoading(false);
@@ -72,12 +82,14 @@ export default function ManageUsers() {
         });
       } else {
         // Create user with invitation
+        // Only super admins can create admins
+        const roleToCreate = formData.role === 'admin' && isSuperAdmin ? 'admin' : formData.role;
         await usersApi.create({
           name: fullName,
           firstName: formData.firstName.trim(),
           lastName: formData.lastName.trim(),
           email: formData.email,
-          role: formData.role,
+          role: roleToCreate,
           sendEmail: formData.sendEmail,
           customEmailMessage: formData.customEmailMessage || undefined,
         });
@@ -171,7 +183,10 @@ export default function ManageUsers() {
     }
   };
 
-  const currentUsers = activeTab === 'teacher' ? teachers : activeTab === 'teen' ? teens : parents;
+  const currentUsers = activeTab === 'teacher' ? teachers 
+    : activeTab === 'teen' ? teens 
+    : activeTab === 'admin' ? admins 
+    : parents;
 
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
@@ -186,6 +201,18 @@ export default function ManageUsers() {
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 border-b border-border">
+          {isSuperAdmin && (
+            <button
+              onClick={() => setActiveTab('admin')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'admin'
+                  ? 'border-foreground text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Admins
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('teacher')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
@@ -227,7 +254,7 @@ export default function ManageUsers() {
             }}
             className="px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
           >
-            + Add {activeTab === 'teacher' ? 'Teacher' : activeTab === 'teen' ? 'Teen' : 'Parent'}
+            + Add {activeTab === 'admin' ? 'Admin' : activeTab === 'teacher' ? 'Teacher' : activeTab === 'teen' ? 'Teen' : 'Parent'}
           </button>
         </div>
 
@@ -363,7 +390,7 @@ export default function ManageUsers() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-background border border-border rounded-lg p-6 max-w-md w-full">
               <h2 className="text-xl font-semibold mb-4">
-                Add {activeTab === 'teacher' ? 'Teacher' : activeTab === 'teen' ? 'Teen' : 'Parent'}
+                Add {activeTab === 'admin' ? 'Admin' : activeTab === 'teacher' ? 'Teacher' : activeTab === 'teen' ? 'Teen' : 'Parent'}
               </h2>
               <form onSubmit={handleAddUser} className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">

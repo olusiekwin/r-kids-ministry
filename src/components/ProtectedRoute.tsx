@@ -32,14 +32,21 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   }
 
   // If role is required and doesn't match, redirect to appropriate dashboard
+  // Super admins can access admin routes
   if (requiredRole && user.role !== requiredRole) {
-    const roleRoutes: Record<UserRole, string> = {
-      admin: '/admin',
-      teacher: '/teacher',
-      parent: '/parent',
-      teen: '/teen',
-    };
-    return <Navigate to={roleRoutes[user.role] || '/login'} replace />;
+    // Allow super_admin to access admin routes
+    if (requiredRole === 'admin' && user.role === 'super_admin') {
+      // Allow access
+    } else {
+      const roleRoutes: Record<UserRole, string> = {
+        admin: '/admin',
+        super_admin: '/admin',
+        teacher: '/teacher',
+        parent: '/parent',
+        teen: '/teen',
+      };
+      return <Navigate to={roleRoutes[user.role] || '/login'} replace />;
+    }
   }
 
   return <>{children}</>;

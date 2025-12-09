@@ -55,7 +55,7 @@ def login():
                     user = {
                         "id": db_user["user_id"],
                         "email": db_user.get("email", email),
-                        "role": db_user.get("role", "").lower() if db_user.get("role") else "parent",
+                        "role": db_user.get("role", "").lower().replace("superadmin", "super_admin") if db_user.get("role") else "parent",
                         "name": db_user.get("name") or email.split("@")[0].title(),
                         "profile_updated": db_user.get("profile_updated", False),
                     }
@@ -69,7 +69,7 @@ def login():
             {
                 "id": email,
                 "email": email,
-                "role": "admin" if email.startswith("admin") else "parent",
+                "role": "super_admin" if email.startswith("superadmin") else ("admin" if email.startswith("admin") else "parent"),
                 "name": email.split("@")[0].title(),
                 "profile_updated": True,
             },
@@ -102,8 +102,11 @@ def verify_mfa():
     code = str(data.get("code", "")).strip()
     token = data.get("token")
 
-    if not token or token not in mfa_codes:
-        return jsonify({"error": "MFA code expired. Please login again."}), 401
+    if not token:
+        return jsonify({"error": "Authentication token is required. Please login again."}), 401
+
+    if token not in mfa_codes:
+        return jsonify({"error": "MFA session expired or invalid. Please login again."}), 401
 
     entry = mfa_codes[token]
     if datetime.utcnow() > entry["expires_at"]:
@@ -111,7 +114,7 @@ def verify_mfa():
         return jsonify({"error": "MFA code expired. Please login again."}), 401
 
     if code != entry["code"]:
-        return jsonify({"error": "Invalid verification code"}), 401
+        return jsonify({"error": "Invalid verification code. Please check and try again."}), 401
 
     email = entry["user_email"]
     user = users_db.get(email)
@@ -136,7 +139,7 @@ def verify_mfa():
                         user = {
                             "id": db_user["user_id"],
                             "email": db_user.get("email", email),
-                            "role": db_user.get("role", "").lower() if db_user.get("role") else "parent",
+                            "role": db_user.get("role", "").lower().replace("superadmin", "super_admin") if db_user.get("role") else "parent",
                             "name": db_user.get("name") or email.split("@")[0].title(),
                             "phone": db_user.get("phone"),
                             "address": db_user.get("address"),
@@ -199,7 +202,7 @@ def set_password():
                     user = {
                         "id": db_user["user_id"],
                         "email": db_user.get("email", email),
-                        "role": db_user.get("role", "").lower() if db_user.get("role") else "parent",
+                        "role": db_user.get("role", "").lower().replace("superadmin", "super_admin") if db_user.get("role") else "parent",
                         "name": db_user.get("name") or email.split("@")[0].title(),
                         "profile_updated": db_user.get("profile_updated", False),
                     }

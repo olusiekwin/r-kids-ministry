@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'teacher' | 'parent' | 'teen';
+export type UserRole = 'admin' | 'super_admin' | 'teacher' | 'parent' | 'teen';
 
 export type GroupName = 'Little Angels' | 'Saints' | 'Disciples' | 'Trendsetters';
 
