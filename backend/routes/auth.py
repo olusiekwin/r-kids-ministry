@@ -100,20 +100,30 @@ def verify_mfa():
     """Verify MFA code and return final token + user."""
     data = request.get_json() or {}
     code = str(data.get("code", "")).strip()
+    
+    # Try to get token from body first, then from Authorization header
     token = data.get("token")
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
 
     if not token:
+        print("⚠️ MFA verification failed: No token provided")
         return jsonify({"error": "Authentication token is required. Please login again."}), 401
 
     if token not in mfa_codes:
+        print(f"⚠️ MFA verification failed: Token not found in mfa_codes. Available tokens: {list(mfa_codes.keys())[:3]}")
         return jsonify({"error": "MFA session expired or invalid. Please login again."}), 401
 
     entry = mfa_codes[token]
     if datetime.utcnow() > entry["expires_at"]:
         del mfa_codes[token]
+        print(f"⚠️ MFA verification failed: Code expired for token")
         return jsonify({"error": "MFA code expired. Please login again."}), 401
 
     if code != entry["code"]:
+        print(f"⚠️ MFA verification failed: Invalid code. Expected: {entry['code']}, Got: {code}")
         return jsonify({"error": "Invalid verification code. Please check and try again."}), 401
 
     email = entry["user_email"]
