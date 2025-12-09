@@ -464,6 +464,13 @@ export default function ParentProfile() {
               </h2>
               <div className="flex flex-wrap gap-3">
                 <button
+                  onClick={() => navigate('/calendar')}
+                  className="btn-primary flex items-center gap-2 px-6 py-3"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Create Session
+                </button>
+                <button
                   onClick={() => navigate(`/admin/parents/${parent.id}/edit`)}
                   className="btn-primary flex items-center gap-2 px-6 py-3"
                 >
