@@ -26,7 +26,7 @@ def list_session_bookings(session_id: str):
     try:
         res = (
             client.table("session_bookings")
-            .select("*, children(name, registration_id, group_id), guardians(name, email)")
+            .select("*, children(name, registration_id, group_id, date_of_birth, gender, groups!children_group_id_fkey(name)), guardians(name, email, phone)")
             .eq("session_id", session_id)
             .order("booked_at", desc=True)
             .execute()
@@ -36,14 +36,30 @@ def list_session_bookings(session_id: str):
         for row in res.data or []:
             child = row.get("children")
             guardian = row.get("guardians")
+            # Handle both direct group_id access and nested groups object
+            group = None
+            if child:
+                # Try nested groups object first
+                if "groups" in child and child.get("groups"):
+                    group = child.get("groups")
+                # If groups is a list, take first item
+                elif isinstance(child.get("groups"), list) and len(child.get("groups", [])) > 0:
+                    group = child.get("groups")[0]
+            
             bookings.append({
                 "id": row["booking_id"],
                 "session_id": row.get("session_id"),
                 "child_id": row.get("child_id"),
                 "child_name": child.get("name") if child else None,
                 "registration_id": child.get("registration_id") if child else None,
+                "date_of_birth": child.get("date_of_birth") if child else None,
+                "gender": child.get("gender") if child else None,
+                "group_id": child.get("group_id") if child else None,
+                "group_name": group.get("name") if group else None,
                 "guardian_id": row.get("guardian_id"),
                 "guardian_name": guardian.get("name") if guardian else None,
+                "guardian_email": guardian.get("email") if guardian else None,
+                "guardian_phone": guardian.get("phone") if guardian else None,
                 "status": row.get("status", "booked"),
                 "qr_code": row.get("qr_code"),
                 "otp_code": row.get("otp_code"),
