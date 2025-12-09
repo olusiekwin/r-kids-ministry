@@ -333,9 +333,10 @@ def get_eligible_children(session_id: str):
             return jsonify({"data": []})
         
         # Build query for children in the group
+        # Fetch children first, then get groups and guardians separately to avoid relationship ambiguity
         query = (
             client.table("children")
-            .select("*, groups(name), guardians(name, parent_id)")
+            .select("child_id, registration_id, name, date_of_birth, gender, group_id, parent_id")
             .eq("church_id", church_id)
             .eq("group_id", group_id)
         )
@@ -346,21 +347,65 @@ def get_eligible_children(session_id: str):
         
         res = query.execute()
         
+        # Collect IDs for bulk fetching
+        group_ids = set()
+        guardian_ids = set()
+        for row in res.data or []:
+            if row.get("group_id"):
+                group_ids.add(row.get("group_id"))
+            if row.get("parent_id"):
+                guardian_ids.add(row.get("parent_id"))
+        
+        # Fetch groups in bulk
+        groups_map = {}
+        if group_ids:
+            try:
+                groups_res = (
+                    client.table("groups")
+                    .select("group_id, name")
+                    .in_("group_id", list(group_ids))
+                    .execute()
+                )
+                for group in groups_res.data or []:
+                    groups_map[group["group_id"]] = group.get("name")
+            except Exception as e:
+                print(f"⚠️ Warning: Could not fetch groups: {e}")
+        
+        # Fetch guardians in bulk
+        guardians_map = {}
+        if guardian_ids:
+            try:
+                guardians_res = (
+                    client.table("guardians")
+                    .select("guardian_id, name, parent_id")
+                    .in_("guardian_id", list(guardian_ids))
+                    .execute()
+                )
+                for guardian in guardians_res.data or []:
+                    guardians_map[guardian["guardian_id"]] = {
+                        "name": guardian.get("name"),
+                        "parent_id": guardian.get("parent_id"),
+                    }
+            except Exception as e:
+                print(f"⚠️ Warning: Could not fetch guardians: {e}")
+        
         children = []
         for row in res.data or []:
-            group = row.get("groups")
-            guardian = row.get("guardians")
+            parent_id = row.get("parent_id")
+            group_id = row.get("group_id")
+            guardian_info = guardians_map.get(parent_id) if parent_id else None
+            
             children.append({
                 "id": row["child_id"],
                 "registration_id": row.get("registration_id"),
                 "name": row.get("name"),
                 "date_of_birth": row.get("date_of_birth"),
                 "gender": row.get("gender"),
-                "group_id": row.get("group_id"),
-                "group_name": group.get("name") if group else None,
-                "parent_id": row.get("parent_id"),
-                "guardian_name": guardian.get("name") if guardian else None,
-                "parent_registration_id": guardian.get("parent_id") if guardian else None,
+                "group_id": group_id,
+                "group_name": groups_map.get(group_id) if group_id else None,
+                "parent_id": parent_id,
+                "guardian_name": guardian_info.get("name") if guardian_info else None,
+                "parent_registration_id": guardian_info.get("parent_id") if guardian_info else None,
             })
         
         return jsonify({"data": children})
