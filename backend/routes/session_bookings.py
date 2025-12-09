@@ -74,7 +74,7 @@ def list_session_bookings(session_id: str):
                 "date_of_birth": child.get("date_of_birth") if child else None,
                 "gender": child.get("gender") if child else None,
                 "group_id": child.get("group_id") if child else None,
-                "group_name": group.get("name") if group else None,
+                "group_name": group_name,
                 "guardian_id": row.get("guardian_id"),
                 "guardian_name": guardian.get("name") if guardian else None,
                 "guardian_email": guardian.get("email") if guardian else None,
