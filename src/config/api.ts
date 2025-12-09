@@ -152,6 +152,8 @@ export const API_ENDPOINTS = {
     GET: (id: string) => `/sessions/${id}`,
     UPDATE: (id: string) => `/sessions/${id}`,
     DELETE: (id: string) => `/sessions/${id}`,
+    CHILDREN: (id: string) => `/sessions/${id}/children`,
+    HISTORY: (id: string) => `/sessions/${id}/history`,
   },
 
   // Session Bookings

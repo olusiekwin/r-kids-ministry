@@ -853,6 +853,7 @@ export const sessionsApi = {
     is_recurring?: boolean;
     recurrence_pattern?: string;
     location?: string;
+    gender_restriction?: 'Male' | 'Female';
   }) => {
     return apiRequest<any>(API_ENDPOINTS.SESSIONS.CREATE, {
       method: 'POST',
@@ -885,6 +886,14 @@ export const sessionsApi = {
     return apiRequest<void>(API_ENDPOINTS.SESSIONS.DELETE(sessionId), {
       method: 'DELETE',
     });
+  },
+
+  getChildren: async (sessionId: string) => {
+    return apiRequest<any[]>(API_ENDPOINTS.SESSIONS.CHILDREN(sessionId));
+  },
+
+  getHistory: async (sessionId: string) => {
+    return apiRequest<any[]>(API_ENDPOINTS.SESSIONS.HISTORY(sessionId));
   },
 };
 

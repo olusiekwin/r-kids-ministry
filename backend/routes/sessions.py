@@ -89,6 +89,7 @@ def list_sessions():
                 "location": row.get("location"),
                 "is_recurring": row.get("is_recurring", False),
                 "recurrence_pattern": row.get("recurrence_pattern"),
+                "gender_restriction": row.get("gender_restriction"),
                 "created_at": row.get("created_at"),
             })
         
@@ -131,6 +132,7 @@ def create_session():
             "is_recurring": data.get("is_recurring", False),
             "recurrence_pattern": data.get("recurrence_pattern"),
             "created_by": data.get("created_by") or data.get("createdBy"),  # From auth token in real app
+            "gender_restriction": data.get("gender_restriction"),  # Male, Female, or None
         }
         
         res = client.table("sessions").insert(session_data).execute()
@@ -170,7 +172,7 @@ def get_session(session_id: str):
     try:
         res = (
             client.table("sessions")
-            .select("*, groups(name, room), users(name, email)")
+            .select("*, groups(name, room)")
             .eq("session_id", session_id)
             .eq("church_id", church_id)
             .execute()
@@ -181,7 +183,29 @@ def get_session(session_id: str):
         
         row = res.data[0]
         group = row.get("groups")
-        teacher = row.get("users")
+        teacher_id = row.get("teacher_id")
+        created_by_id = row.get("created_by")
+        
+        # Get teacher name if teacher_id exists
+        teacher_name = None
+        if teacher_id:
+            try:
+                teacher_res = client.table("users").select("name").eq("user_id", teacher_id).execute()
+                if teacher_res.data:
+                    teacher_name = teacher_res.data[0].get("name")
+            except:
+                pass
+        
+        # Get creator name if created_by exists
+        created_by_name = None
+        if created_by_id:
+            try:
+                creator_res = client.table("users").select("name").eq("user_id", created_by_id).execute()
+                if creator_res.data:
+                    created_by_name = creator_res.data[0].get("name")
+            except:
+                pass
+        
         return jsonify({
             "data": {
                 "id": row["session_id"],
@@ -193,12 +217,15 @@ def get_session(session_id: str):
                 "group_id": row.get("group_id"),
                 "group_name": group.get("name") if group else None,
                 "room": group.get("room") if group else None,
-                "teacher_id": row.get("teacher_id"),
-                "teacher_name": teacher.get("name") if teacher else None,
+                "teacher_id": teacher_id,
+                "teacher_name": teacher_name,
+                "created_by": created_by_id,
+                "created_by_name": created_by_name,
                 "session_type": row.get("session_type", "Regular"),
                 "location": row.get("location"),
                 "is_recurring": row.get("is_recurring", False),
                 "recurrence_pattern": row.get("recurrence_pattern"),
+                "gender_restriction": row.get("gender_restriction"),  # Male, Female, or None
             }
         })
     except Exception as exc:  # pragma: no cover
@@ -242,6 +269,8 @@ def update_session(session_id: str):
             update_data["is_recurring"] = data["is_recurring"]
         if "recurrence_pattern" in data:
             update_data["recurrence_pattern"] = data["recurrence_pattern"]
+        if "gender_restriction" in data:
+            update_data["gender_restriction"] = data["gender_restriction"]
 
         if not update_data:
             return jsonify({"error": "No fields to update"}), 400
@@ -286,4 +315,122 @@ def delete_session(session_id: str):
     except Exception as exc:  # pragma: no cover
         print(f"⚠️ Error deleting session: {exc}")
         return jsonify({"error": "Failed to delete session"}), 500
+
+
+@sessions_bp.get("/<session_id>/children")
+def get_session_children(session_id: str):
+    """Get all children eligible for a session (based on group and gender restriction)."""
+    client = get_supabase()
+    if client is None:
+        return jsonify({"error": "Supabase not configured"}), 500
+
+    church_id = get_default_church_id()
+    if church_id is None:
+        return jsonify({"error": "No church configured"}), 500
+
+    try:
+        # First get the session
+        session_res = (
+            client.table("sessions")
+            .select("group_id, gender_restriction")
+            .eq("session_id", session_id)
+            .eq("church_id", church_id)
+            .execute()
+        )
+        
+        if not session_res.data:
+            return jsonify({"error": "Session not found"}), 404
+        
+        session = session_res.data[0]
+        group_id = session.get("group_id")
+        gender_restriction = session.get("gender_restriction")
+        
+        if not group_id:
+            return jsonify({"data": []})
+        
+        # Get all children in the group
+        query = (
+            client.table("children")
+            .select("*, groups(name), guardians(name, parent_id)")
+            .eq("church_id", church_id)
+            .eq("group_id", group_id)
+        )
+        
+        # Apply gender restriction if specified
+        if gender_restriction:
+            query = query.eq("gender", gender_restriction)
+        
+        res = query.execute()
+        
+        children = []
+        for row in res.data or []:
+            group = row.get("groups")
+            guardian = row.get("guardians")
+            children.append({
+                "id": row["child_id"],
+                "registration_id": row.get("registration_id"),
+                "name": row.get("name"),
+                "date_of_birth": row.get("date_of_birth"),
+                "gender": row.get("gender"),
+                "group_id": row.get("group_id"),
+                "group_name": group.get("name") if group else None,
+                "parent_id": row.get("parent_id"),
+                "guardian_name": guardian.get("name") if guardian else None,
+                "parent_registration_id": guardian.get("parent_id") if guardian else None,
+            })
+        
+        return jsonify({"data": children})
+    except Exception as exc:  # pragma: no cover
+        import traceback
+        print(f"⚠️ Error getting session children: {exc}")
+        print(traceback.format_exc())
+        return jsonify({"error": "Failed to get session children"}), 500
+
+
+@sessions_bp.get("/<session_id>/history")
+def get_session_history(session_id: str):
+    """Get check-in/checkout history for a session."""
+    client = get_supabase()
+    if client is None:
+        return jsonify({"error": "Supabase not configured"}), 500
+
+    church_id = get_default_church_id()
+    if church_id is None:
+        return jsonify({"error": "No church configured"}), 500
+
+    try:
+        # Get all check-in records for this session
+        res = (
+            client.table("check_in_records")
+            .select("*, children(name, registration_id, gender), users(name), session_bookings(booking_id)")
+            .eq("church_id", church_id)
+            .not_.is_("session_id", "null")
+            .eq("session_id", session_id)
+            .order("timestamp_in", desc=True)
+            .execute()
+        )
+        
+        history = []
+        for row in res.data or []:
+            child = row.get("children")
+            teacher = row.get("users")
+            history.append({
+                "record_id": row["record_id"],
+                "child_id": row.get("child_id"),
+                "child_name": child.get("name") if child else None,
+                "child_registration_id": child.get("registration_id") if child else None,
+                "child_gender": child.get("gender") if child else None,
+                "teacher_id": row.get("teacher_id"),
+                "teacher_name": teacher.get("name") if teacher else None,
+                "timestamp_in": row.get("timestamp_in"),
+                "timestamp_out": row.get("timestamp_out"),
+                "method": row.get("method"),
+            })
+        
+        return jsonify({"data": history})
+    except Exception as exc:  # pragma: no cover
+        import traceback
+        print(f"⚠️ Error getting session history: {exc}")
+        print(traceback.format_exc())
+        return jsonify({"error": "Failed to get session history"}), 500
 
