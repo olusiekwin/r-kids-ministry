@@ -26,25 +26,44 @@ def list_session_bookings(session_id: str):
     try:
         res = (
             client.table("session_bookings")
-            .select("*, children(name, registration_id, group_id, date_of_birth, gender, groups!children_group_id_fkey(name)), guardians(name, email, phone)")
+            .select("*, children(name, registration_id, group_id, date_of_birth, gender), guardians(name, email, phone)")
             .eq("session_id", session_id)
             .order("booked_at", desc=True)
             .execute()
         )
         
         bookings = []
+        group_ids = set()
+        child_group_map = {}
+        
+        # Collect group IDs to fetch separately
+        for row in res.data or []:
+            child = row.get("children")
+            if child and child.get("group_id"):
+                group_ids.add(child.get("group_id"))
+                child_group_map[row.get("child_id")] = child.get("group_id")
+        
+        # Fetch groups in bulk
+        groups_map = {}
+        if group_ids:
+            try:
+                groups_res = (
+                    client.table("groups")
+                    .select("group_id, name")
+                    .in_("group_id", list(group_ids))
+                    .execute()
+                )
+                for group in groups_res.data or []:
+                    groups_map[group["group_id"]] = group.get("name")
+            except Exception as e:
+                print(f"⚠️ Warning: Could not fetch groups: {e}")
+        
         for row in res.data or []:
             child = row.get("children")
             guardian = row.get("guardians")
-            # Handle both direct group_id access and nested groups object
-            group = None
-            if child:
-                # Try nested groups object first
-                if "groups" in child and child.get("groups"):
-                    group = child.get("groups")
-                # If groups is a list, take first item
-                elif isinstance(child.get("groups"), list) and len(child.get("groups", [])) > 0:
-                    group = child.get("groups")[0]
+            group_name = None
+            if child and child.get("group_id"):
+                group_name = groups_map.get(child.get("group_id"))
             
             bookings.append({
                 "id": row["booking_id"],
