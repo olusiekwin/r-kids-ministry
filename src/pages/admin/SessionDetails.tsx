@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
-import { AdminSidebar } from '@/components/AdminSidebar';
 import { sessionsApi, sessionBookingsApi, checkInApi, checkOutApi } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/components/ui/sonner';
@@ -19,6 +18,7 @@ import {
   LogOut,
   BarChart3,
   Loader2,
+  ChevronRight,
 } from 'lucide-react';
 
 interface Session {
@@ -161,8 +161,7 @@ export default function SessionDetails() {
     return (
       <div className="min-h-screen bg-background pb-16 md:pb-0">
         <Header />
-        <AdminSidebar />
-        <main className="md:ml-64 container py-8 px-4 md:px-6 lg:px-8">
+        <main className="container py-8 px-4 md:px-6 lg:px-8 max-w-7xl mx-auto">
           <div className="text-center py-12">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-muted-foreground" />
             <p className="text-muted-foreground">Loading session details...</p>
@@ -177,8 +176,7 @@ export default function SessionDetails() {
     return (
       <div className="min-h-screen bg-background pb-16 md:pb-0">
         <Header />
-        <AdminSidebar />
-        <main className="md:ml-64 container py-8 px-4 md:px-6 lg:px-8">
+        <main className="container py-8 px-4 md:px-6 lg:px-8 max-w-7xl mx-auto">
           <div className="text-center py-12">
             <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">Session Not Found</h2>
@@ -199,17 +197,19 @@ export default function SessionDetails() {
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">
       <Header />
-      <AdminSidebar />
       
-      <main className="md:ml-64 container py-8 px-4 md:px-6 lg:px-8">
-        {/* Back Button */}
-        <button
-          onClick={() => navigate('/calendar')}
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Calendar
-        </button>
+      <main className="container py-8 px-4 md:px-6 lg:px-8 max-w-7xl mx-auto">
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+          <button
+            onClick={() => navigate('/calendar')}
+            className="hover:text-foreground transition-colors"
+          >
+            Sessions
+          </button>
+          <ChevronRight className="w-4 h-4" />
+          <span className="text-foreground font-medium">{session.title}</span>
+        </nav>
 
         {/* Session Header */}
         <div className="bg-background border-2 border-border rounded-xl p-6 mb-6 shadow-lg">

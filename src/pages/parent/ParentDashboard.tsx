@@ -343,17 +343,16 @@ export default function ParentDashboard() {
                       {child.registrationId}
                     </p>
                               <h3 className="text-xl font-semibold mb-1">
-                                {child.name}
+                                {child.name} <span className="text-muted-foreground font-normal">({child.age})</span>
                               </h3>
-                              <div className="text-sm text-muted-foreground space-y-1">
-                                <p><span className="font-medium">Age:</span> {child.age}</p>
-                                {child.group && (
-                                  <p><span className="font-medium">Group:</span> {child.group}</p>
-                                )}
-                                {child.gender && (
-                                  <p><span className="font-medium">Gender:</span> {child.gender}</p>
-                                )}
-                              </div>
+                    <p className="text-sm text-muted-foreground">
+                      Group: {child.group}
+                    </p>
+                    {child.gender && (
+                      <p className="text-sm text-muted-foreground">
+                        Gender: {child.gender}
+                      </p>
+                    )}
                           {child.checkInTime && (
                             <p className="text-xs text-muted-foreground mt-1">
                               Checked in at {child.checkInTime}

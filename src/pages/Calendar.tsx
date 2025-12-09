@@ -103,7 +103,6 @@ export default function Calendar() {
       group_id: formData.get('group_id') as string || undefined,
       session_type: (formData.get('session_type') as string) || 'Regular',
       location: formData.get('location') as string || undefined,
-      gender_restriction: formData.get('gender_restriction') as string || undefined,
     };
 
     try {
@@ -378,15 +377,6 @@ export default function Calendar() {
                     className="input-field w-full"
                     placeholder="e.g., Main Hall, Room 101"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Gender Restriction (Optional)</label>
-                  <select name="gender_restriction" className="input-field w-full">
-                    <option value="">All Genders</option>
-                    <option value="Male">Boys Only</option>
-                    <option value="Female">Girls Only</option>
-                  </select>
                 </div>
 
                 <div className="flex gap-4 pt-4">
