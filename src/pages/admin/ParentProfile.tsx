@@ -104,6 +104,7 @@ export default function ParentProfile() {
     if (parentId) {
       loadParentDetails();
       loadTodaySessions();
+      loadGroups();
     }
   }, [parentId]);
   
@@ -112,6 +113,17 @@ export default function ParentProfile() {
       loadTodaySessions();
     }
   }, [showCheckInModal, showCheckOutModal]);
+  
+  useEffect(() => {
+    if (showEditChildModal && selectedChild) {
+      setEditFormData({
+        name: selectedChild.name || '',
+        dateOfBirth: selectedChild.dateOfBirth || '',
+        gender: (selectedChild as any).gender || '',
+        groupId: selectedChild.group?.id || '',
+      });
+    }
+  }, [showEditChildModal, selectedChild]);
   
   const loadTodaySessions = async () => {
     try {
@@ -124,6 +136,53 @@ export default function ParentProfile() {
       setSessions([]);
     } finally {
       setLoadingSessions(false);
+    }
+  };
+  
+  const loadGroups = async () => {
+    try {
+      const data = await groupsApi.list();
+      setGroups(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Failed to load groups:', error);
+      setGroups([]);
+    }
+  };
+  
+  const handleEditChild = async () => {
+    if (!selectedChild) return;
+    
+    setActionLoading(selectedChild.id);
+    setEditError('');
+    
+    try {
+      const updateData: any = {
+        name: editFormData.name,
+        dateOfBirth: editFormData.dateOfBirth,
+      };
+      
+      if (editFormData.gender) {
+        updateData.gender = editFormData.gender;
+      }
+      
+      if (editFormData.groupId) {
+        updateData.group_id = editFormData.groupId;
+      } else if (editFormData.groupId === '') {
+        updateData.group_id = null;
+      }
+      
+      await childrenApi.update(selectedChild.id, updateData);
+      await loadParentDetails();
+      setShowEditChildModal(false);
+      setSelectedChild(null);
+      toast.success('Child updated successfully', {
+        description: `${editFormData.name}'s details have been updated.`,
+      });
+    } catch (error: any) {
+      console.error('Failed to update child:', error);
+      setEditError(error.message || 'Failed to update child. Please try again.');
+    } finally {
+      setActionLoading(null);
     }
   };
 
