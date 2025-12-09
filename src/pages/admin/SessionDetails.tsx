@@ -23,6 +23,8 @@ import {
   Phone,
   Calendar,
   Baby,
+  List,
+  Grid3x3,
 } from 'lucide-react';
 
 interface Session {
@@ -84,6 +86,7 @@ export default function SessionDetails() {
   const [eligibleChildren, setEligibleChildren] = useState<EligibleChild[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'card'>('list'); // Default to list view
 
   useEffect(() => {
     if (sessionId) {
@@ -166,9 +169,11 @@ export default function SessionDetails() {
     setActionLoading(booking.id);
     try {
       await checkInApi.manual(booking.child_id, sessionId!, user.id);
+      // Refresh bookings to show updated status and button change
       await loadBookings();
+      await loadEligibleChildren(); // Also refresh eligible children
       toast.success('Check-in successful', {
-        description: `${booking.child_name} has been checked in.`,
+        description: `${booking.child_name} has been checked in. Button updated to Check Out.`,
       });
     } catch (error: any) {
       console.error('Check-in failed:', error);
@@ -518,20 +523,183 @@ export default function SessionDetails() {
 
         {/* Bookings List with Full Child Details */}
         <div className="bg-background border-2 border-border rounded-xl p-6 shadow-lg">
-          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-            <Users className="w-5 h-5" />
-            All Children ({bookings.length})
-            <span className="text-sm font-normal text-muted-foreground ml-2">
-              Check-in/Check-out functionality
-            </span>
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              <h2 className="text-xl font-bold">
+                All Children ({bookings.length})
+              </h2>
+              <span className="text-sm font-normal text-muted-foreground">
+                Check-in/Check-out functionality
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-lg transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted hover:bg-muted/80'
+                }`}
+                title="List View"
+              >
+                <List className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setViewMode('card')}
+                className={`p-2 rounded-lg transition-colors ${
+                  viewMode === 'card'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted hover:bg-muted/80'
+                }`}
+                title="Card View"
+              >
+                <Grid3x3 className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
 
           {bookings.length === 0 ? (
             <div className="text-center py-12">
               <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">No bookings for this session yet.</p>
             </div>
+          ) : viewMode === 'list' ? (
+            /* Professional List/Table View */
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-border bg-muted/50">
+                    <th className="text-left py-4 px-4 font-semibold text-sm uppercase tracking-wide">Child</th>
+                    <th className="text-left py-4 px-4 font-semibold text-sm uppercase tracking-wide">Registration ID</th>
+                    <th className="text-left py-4 px-4 font-semibold text-sm uppercase tracking-wide">Age</th>
+                    <th className="text-left py-4 px-4 font-semibold text-sm uppercase tracking-wide">Gender</th>
+                    <th className="text-left py-4 px-4 font-semibold text-sm uppercase tracking-wide">Group</th>
+                    <th className="text-left py-4 px-4 font-semibold text-sm uppercase tracking-wide">Parent/Guardian</th>
+                    <th className="text-left py-4 px-4 font-semibold text-sm uppercase tracking-wide">Contact</th>
+                    <th className="text-left py-4 px-4 font-semibold text-sm uppercase tracking-wide">Status</th>
+                    <th className="text-left py-4 px-4 font-semibold text-sm uppercase tracking-wide">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bookings.map((booking, index) => (
+                    <tr
+                      key={booking.id}
+                      className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${
+                        booking.status === 'checked_in' ? 'bg-green-50/30' : ''
+                      }`}
+                    >
+                      <td className="py-4 px-4">
+                        <div className="font-semibold">{booking.child_name}</div>
+                        {booking.date_of_birth && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            DOB: {new Date(booking.date_of_birth).toLocaleDateString()}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="font-mono text-sm bg-muted px-2 py-1 rounded">
+                          {booking.registration_id}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="font-medium">
+                          {booking.date_of_birth ? `${calculateAge(booking.date_of_birth)} years` : 'N/A'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4">
+                        {booking.gender || 'N/A'}
+                      </td>
+                      <td className="py-4 px-4">
+                        {booking.group_name ? (
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                            {booking.group_name}
+                          </span>
+                        ) : (
+                          'N/A'
+                        )}
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="font-medium">{booking.guardian_name || 'N/A'}</div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="text-sm space-y-1">
+                          {booking.guardian_email && (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Mail className="w-3 h-3" />
+                              <span className="text-xs truncate max-w-[150px]">{booking.guardian_email}</span>
+                            </div>
+                          )}
+                          {booking.guardian_phone && (
+                            <div className="flex items-center gap-1 text-muted-foreground">
+                              <Phone className="w-3 h-3" />
+                              <span className="text-xs">{booking.guardian_phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                            booking.status === 'checked_in'
+                              ? 'bg-green-100 text-green-800'
+                              : booking.status === 'checked_out'
+                              ? 'bg-blue-100 text-blue-800'
+                              : booking.status === 'cancelled'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {booking.status.replace('_', ' ').toUpperCase()}
+                        </span>
+                        {booking.checked_in_at && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            In: {new Date(booking.checked_in_at).toLocaleTimeString()}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-4 px-4">
+                        {booking.status === 'booked' && (
+                          <button
+                            onClick={() => handleCheckIn(booking)}
+                            disabled={actionLoading === booking.id}
+                            className="btn-primary btn-sm flex items-center gap-2 whitespace-nowrap"
+                          >
+                            {actionLoading === booking.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <LogIn className="w-4 h-4" />
+                            )}
+                            Check In
+                          </button>
+                        )}
+                        {booking.status === 'checked_in' && (
+                          <button
+                            onClick={() => handleCheckOut(booking)}
+                            disabled={actionLoading === booking.id}
+                            className="btn-secondary btn-sm flex items-center gap-2 whitespace-nowrap"
+                          >
+                            {actionLoading === booking.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <LogOut className="w-4 h-4" />
+                            )}
+                            Check Out
+                          </button>
+                        )}
+                        {(booking.status === 'checked_out' || booking.status === 'cancelled') && (
+                          <span className="text-xs text-muted-foreground italic">
+                            No action
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
+            /* Card View */
             <div className="grid grid-cols-1 gap-4">
               {bookings.map((booking) => (
                 <div

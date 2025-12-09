@@ -192,10 +192,10 @@ def manual_checkin():
     client = get_supabase()
     booking_id = None
 
-    if client is None:
-        return jsonify({"error": "Supabase not configured"}), 500
-    
-    # If session_id provided, find booking (optional - allows check-in without booking)
+        if client is None:
+            return jsonify({"error": "Supabase not configured"}), 500
+        
+    # If session_id provided, find or create booking
     if session_id:
         try:
             booking_res = (
@@ -203,16 +203,56 @@ def manual_checkin():
                 .select("booking_id, guardian_id, status")
                 .eq("session_id", session_id)
                 .eq("child_id", child_id)
-                .eq("status", "booked")
                 .execute()
             )
             
             if booking_res.data:
+                # Booking exists - use it
                 booking = booking_res.data[0]
                 booking_id = booking["booking_id"]
                 if not guardian_id:
                     guardian_id = booking.get("guardian_id")
-            # Note: We don't fail if no booking found - allow manual check-in without booking
+            else:
+                # No booking exists - create one for session check-in
+                try:
+                    import secrets
+                    from utils.qr_codes import generate_otp_code
+                    
+                    if not guardian_id:
+                        # Get guardian_id from child
+                        child_res = (
+                            client.table("children")
+                            .select("parent_id")
+                            .eq("child_id", child_id)
+                            .execute()
+                        )
+                        if child_res.data:
+                            guardian_id = child_res.data[0].get("parent_id")
+                    
+                    # Create booking
+                    qr_code = secrets.token_urlsafe(32)
+                    otp_code = generate_otp_code()
+                    booking_data = {
+                        "session_id": session_id,
+                        "child_id": child_id,
+                        "guardian_id": guardian_id,
+                        "qr_code": qr_code,
+                        "otp_code": otp_code,
+                        "status": "booked",  # Will be updated to checked_in after check-in record is created
+                    }
+                    
+                    new_booking_res = (
+                        client.table("session_bookings")
+                        .insert(booking_data)
+                        .execute()
+                    )
+                    
+                    if new_booking_res.data:
+                        booking_id = new_booking_res.data[0]["booking_id"]
+                        print(f"✅ Created new booking {booking_id} for child {child_id} in session {session_id}")
+                except Exception as create_booking_error:
+                    print(f"⚠️ Error creating booking: {create_booking_error}")
+                    # Continue without booking_id - check-in will still work
         except Exception as exc:
             print(f"⚠️ Error looking up booking: {exc}")
             # Continue without booking_id - allow manual check-in
@@ -327,19 +367,19 @@ def verify_otp():
                 import traceback
                 traceback.print_exc()
                 return jsonify({"error": "Failed to verify child"}), 500
-        else:
-            # Legacy: Check in-memory OTP store
-            if otp_code not in otp_codes_db:
+    else:
+        # Legacy: Check in-memory OTP store
+        if otp_code not in otp_codes_db:
                 return jsonify({"error": "Invalid or expired OTP code. Please provide child_id or use a valid OTP."}), 401
 
-            otp_data = otp_codes_db[otp_code]
-            if datetime.utcnow() > otp_data["expires_at"]:
-                del otp_codes_db[otp_code]
-                return jsonify({"error": "OTP code expired"}), 401
-
-            child_id = otp_data["child_id"]
-            guardian_id = otp_data.get("guardian_id")
+        otp_data = otp_codes_db[otp_code]
+        if datetime.utcnow() > otp_data["expires_at"]:
             del otp_codes_db[otp_code]
+            return jsonify({"error": "OTP code expired"}), 401
+
+        child_id = otp_data["child_id"]
+        guardian_id = otp_data.get("guardian_id")
+        del otp_codes_db[otp_code]
 
     if not child_id:
         return jsonify({"error": "Could not determine child_id from OTP"}), 400
@@ -568,10 +608,10 @@ def _create_checkin_record(
             record_data["booking_id"] = booking_id
 
         try:
-            res = client.table("check_in_records").insert(record_data).execute()
-            if not res.data:
+        res = client.table("check_in_records").insert(record_data).execute()
+        if not res.data:
                 return jsonify({"error": "Failed to create check-in record", "message": "Database insert returned no data"}), 500
-            record = res.data[0]
+        record = res.data[0]
         except Exception as insert_error:
             print(f"⚠️ Error inserting check-in record: {insert_error}")
             import traceback
