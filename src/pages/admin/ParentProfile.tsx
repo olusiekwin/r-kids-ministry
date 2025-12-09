@@ -89,6 +89,16 @@ export default function ParentProfile() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [selectedSession, setSelectedSession] = useState<any | null>(null);
   const [loadingSessions, setLoadingSessions] = useState(false);
+  
+  // Edit child modal
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    dateOfBirth: '',
+    gender: '' as 'Male' | 'Female' | 'Other' | '',
+    groupId: '',
+  });
+  const [groups, setGroups] = useState<any[]>([]);
+  const [editError, setEditError] = useState('');
 
   useEffect(() => {
     if (parentId) {
@@ -856,6 +866,107 @@ export default function ParentProfile() {
                   </>
                 ) : (
                   parent.status === 'active' ? 'Deactivate' : 'Activate'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Edit Child Modal */}
+        <AlertDialog open={showEditChildModal} onOpenChange={(open) => {
+          setShowEditChildModal(open);
+          if (!open) {
+            setSelectedChild(null);
+            setEditError('');
+          }
+        }}>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Edit Child Details</AlertDialogTitle>
+              <AlertDialogDescription>
+                Update information for <strong>{selectedChild?.name}</strong>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            
+            <div className="py-4 space-y-4">
+              {editError && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3 text-sm text-red-800 dark:text-red-200">
+                  {editError}
+                </div>
+              )}
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">Name</label>
+                <input
+                  type="text"
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background"
+                  placeholder="Child's full name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">Date of Birth</label>
+                <input
+                  type="date"
+                  value={editFormData.dateOfBirth}
+                  onChange={(e) => setEditFormData({ ...editFormData, dateOfBirth: e.target.value })}
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background"
+                  max={new Date().toISOString().split('T')[0]}
+                />
+                {editFormData.dateOfBirth && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Age: {calculateAge(editFormData.dateOfBirth)} years old
+                  </p>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">Gender</label>
+                <select
+                  value={editFormData.gender}
+                  onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value as 'Male' | 'Female' | 'Other' })}
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background"
+                >
+                  <option value="">Select gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">Group (Optional)</label>
+                <select
+                  value={editFormData.groupId}
+                  onChange={(e) => setEditFormData({ ...editFormData, groupId: e.target.value })}
+                  className="w-full px-3 py-2 border border-border rounded-md bg-background"
+                >
+                  <option value="">No group</option>
+                  {groups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleEditChild}
+                disabled={actionLoading !== null}
+                className="bg-foreground text-background"
+              >
+                {actionLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin inline" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
                 )}
               </AlertDialogAction>
             </AlertDialogFooter>
