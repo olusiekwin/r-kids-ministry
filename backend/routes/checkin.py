@@ -367,19 +367,19 @@ def verify_otp():
                 import traceback
                 traceback.print_exc()
                 return jsonify({"error": "Failed to verify child"}), 500
-    else:
-        # Legacy: Check in-memory OTP store
-        if otp_code not in otp_codes_db:
+        else:
+            # Legacy: Check in-memory OTP store
+            if otp_code not in otp_codes_db:
                 return jsonify({"error": "Invalid or expired OTP code. Please provide child_id or use a valid OTP."}), 401
 
-        otp_data = otp_codes_db[otp_code]
-        if datetime.utcnow() > otp_data["expires_at"]:
-            del otp_codes_db[otp_code]
-            return jsonify({"error": "OTP code expired"}), 401
+            otp_data = otp_codes_db[otp_code]
+            if datetime.utcnow() > otp_data["expires_at"]:
+                del otp_codes_db[otp_code]
+                return jsonify({"error": "OTP code expired"}), 401
 
-        child_id = otp_data["child_id"]
-        guardian_id = otp_data.get("guardian_id")
-        del otp_codes_db[otp_code]
+            child_id = otp_data["child_id"]
+            guardian_id = otp_data.get("guardian_id")
+            del otp_codes_db[otp_code]
 
     if not child_id:
         return jsonify({"error": "Could not determine child_id from OTP"}), 400
