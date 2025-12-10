@@ -608,10 +608,10 @@ def _create_checkin_record(
             record_data["booking_id"] = booking_id
 
         try:
-        res = client.table("check_in_records").insert(record_data).execute()
-        if not res.data:
+            res = client.table("check_in_records").insert(record_data).execute()
+            if not res.data:
                 return jsonify({"error": "Failed to create check-in record", "message": "Database insert returned no data"}), 500
-        record = res.data[0]
+            record = res.data[0]
         except Exception as insert_error:
             print(f"⚠️ Error inserting check-in record: {insert_error}")
             import traceback
@@ -652,6 +652,7 @@ def _create_checkin_record(
                 }).eq("booking_id", booking_id).execute()
             except Exception as e:
                 print(f"⚠️ Error updating booking status: {e}")
+                # Continue - check-in record is already created
 
         # Send notification to parent (Phase 3B.4)
         notify_check_in(
