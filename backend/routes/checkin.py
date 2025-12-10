@@ -192,9 +192,9 @@ def manual_checkin():
     client = get_supabase()
     booking_id = None
 
-        if client is None:
-            return jsonify({"error": "Supabase not configured"}), 500
-        
+    if client is None:
+        return jsonify({"error": "Supabase not configured"}), 500
+    
     # If session_id provided, find or create booking
     if session_id:
         try:
