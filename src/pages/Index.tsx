@@ -9,7 +9,9 @@ const Index = () => {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      navigate(`/${user.role}`);
+      // Super admins should go to /admin, not /super_admin
+      const redirectPath = user.role === 'super_admin' ? '/admin' : `/${user.role}`;
+      navigate(redirectPath);
     }
   }, [isAuthenticated, user, navigate]);
 

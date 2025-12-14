@@ -169,7 +169,9 @@ export default function Login() {
       if (needsProfileUpdate) {
         navigate('/update-profile', { replace: true });
       } else {
-        navigate(`/${userRole}`, { replace: true });
+        // Super admins should go to /admin, not /super_admin
+        const redirectPath = userRole === 'super_admin' ? '/admin' : `/${userRole}`;
+        navigate(redirectPath, { replace: true });
       }
     } else {
       setError('Invalid verification code');
