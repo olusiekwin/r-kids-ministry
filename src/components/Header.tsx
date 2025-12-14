@@ -3,7 +3,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Logo } from './Logo';
 import { notificationsApi } from '@/services/api';
-import { Bell, X } from 'lucide-react';
+import { Bell, X, User, Settings, Shield, Calendar, BarChart3, LogOut } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface Notification {
   id: string;
