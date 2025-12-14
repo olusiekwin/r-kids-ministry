@@ -5,7 +5,8 @@ import { MobileNav } from '@/components/MobileNav';
 import { AdminSidebar } from '@/components/AdminSidebar';
 import { parentsApi, usersApi, analyticsApi } from '@/services/api';
 import { Parent, User } from '@/types';
-import { Users, Calendar, BarChart3, TrendingUp } from 'lucide-react';
+import { Users, Calendar, BarChart3, TrendingUp, Shield } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 type SortField = 'id' | 'name' | 'childrenCount' | 'status';
 type SortOrder = 'asc' | 'desc';

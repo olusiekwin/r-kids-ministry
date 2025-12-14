@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { MobileNav } from '@/components/MobileNav';
 import { AdminSidebar } from '@/components/AdminSidebar';
@@ -206,7 +206,19 @@ export default function ManageUsers() {
       <main className="md:ml-64 container py-8 px-4 md:px-6 lg:px-8 relative z-10">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold mb-2">Manage Users</h1>
-          <p className="text-muted-foreground">Create and manage teacher, teen, and parent accounts</p>
+          <p className="text-muted-foreground">
+            {isSuperAdmin 
+              ? 'Create and manage admin, teacher, teen, and parent accounts'
+              : 'Create and manage teacher, teen, and parent accounts'
+            }
+          </p>
+          {isSuperAdmin && (
+            <div className="mt-3 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Super Admin:</strong> You can create and manage admin users. Click on the "Admins" tab to get started.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Tabs */}
@@ -408,6 +420,13 @@ export default function ManageUsers() {
               <h2 className="text-xl font-semibold mb-4">
                 Add {activeTab === 'admin' ? 'Admin' : activeTab === 'teacher' ? 'Teacher' : activeTab === 'teen' ? 'Teen' : 'Parent'}
               </h2>
+              {activeTab === 'admin' && (
+                <div className="mb-4 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-xs text-yellow-800">
+                    <strong>Note:</strong> New admins will be required to change their password on first login.
+                  </p>
+                </div>
+              )}
               <form onSubmit={handleAddUser} className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>

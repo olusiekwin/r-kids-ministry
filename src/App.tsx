@@ -43,6 +43,8 @@ import Notifications from "./pages/parent/Notifications";
 import BookSession from "./pages/parent/BookSession";
 import Calendar from "./pages/Calendar";
 import SessionDetails from "./pages/admin/SessionDetails";
+import SessionManagement from "./pages/admin/SessionManagement";
+import SessionAnalytics from "./pages/admin/SessionAnalytics";
 import TeenDashboard from "./pages/teen/TeenDashboard";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
