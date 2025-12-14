@@ -38,10 +38,30 @@ def list_sessions():
             query = query.eq("group_id", group_id)
         if date:
             query = query.eq("session_date", date)
+        
+        # Handle year and month filters
         if year:
-            query = query.gte("session_date", f"{year}-01-01").lt("session_date", f"{int(year)+1}-01-01")
-        if month and year:
-            query = query.gte("session_date", f"{year}-{month:02d}-01").lt("session_date", f"{year}-{int(month)+1:02d}-01" if int(month) < 12 else f"{int(year)+1}-01-01")
+            try:
+                year_int = int(year)
+                if month:
+                    try:
+                        month_int = int(month)
+                        if month_int < 1 or month_int > 12:
+                            return jsonify({"error": "Invalid month. Must be between 1 and 12"}), 400
+                        # Filter by specific month
+                        start_date = f"{year_int}-{month_int:02d}-01"
+                        if month_int < 12:
+                            end_date = f"{year_int}-{month_int+1:02d}-01"
+                        else:
+                            end_date = f"{year_int+1}-01-01"
+                        query = query.gte("session_date", start_date).lt("session_date", end_date)
+                    except ValueError:
+                        return jsonify({"error": "Invalid month parameter"}), 400
+                else:
+                    # Filter by entire year
+                    query = query.gte("session_date", f"{year_int}-01-01").lt("session_date", f"{year_int+1}-01-01")
+            except ValueError:
+                return jsonify({"error": "Invalid year parameter"}), 400
 
         res = query.order("session_date", desc=True).order("start_time", desc=False).limit(100).execute()
         
