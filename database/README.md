@@ -9,8 +9,9 @@
    - Navigate to SQL Editor
    - Run the contents of `supabase_schema.sql`
 
-3. **Run the migration** to add user profile fields:
-   - In SQL Editor, run the contents of `migrations/001_add_user_profile_fields.sql`
+3. **Run the complete migration** in Supabase SQL Editor:
+   - Run the contents of `migrations/001_complete_schema_migration.sql`
+   - This includes all schema updates: user profiles, sessions, super admin role, validations, etc.
 
 4. **Fix Row-Level Security (RLS) policies** - IMPORTANT:
    - Option A (RECOMMENDED): Use Service Role Key
@@ -19,7 +20,8 @@
      - Service role key bypasses RLS automatically
    
    - Option B: Create RLS Policies
-     - Run `migrations/002_setup_rls_policies.sql` in Supabase SQL Editor
+     - Uncomment the RLS policies section in `migrations/001_complete_schema_migration.sql`
+     - Run that section in Supabase SQL Editor
      - This allows backend operations with anon key
 
 ## Schema Overview
@@ -55,10 +57,15 @@ Get these from: Supabase Dashboard → Settings → API
 
 ## Migration Files
 
-Run migrations in order in the Supabase SQL Editor:
-
-1. `001_add_user_profile_fields.sql` - Adds name, phone, address, status fields to users table
-2. `002_setup_rls_policies.sql` - Creates RLS policies to allow backend operations (only if using anon key)
+**Single Consolidated Migration:**
+- `001_complete_schema_migration.sql` - Complete schema migration including:
+  - User profile fields (name, phone, address, status)
+  - Sessions and session bookings tables
+  - Super admin role support
+  - Validation constraints
+  - Notifications enhancements
+  - Performance indexes
+  - RLS policies (commented - uncomment if needed)
 
 ## Troubleshooting
 
@@ -71,8 +78,9 @@ If you see errors like `new row violates row-level security policy`:
 - Service role key bypasses RLS automatically
 - More secure than permissive policies
 
-**Solution 2:** Run RLS Migration
-- Execute `migrations/002_setup_rls_policies.sql` in Supabase SQL Editor
+**Solution 2:** Run RLS Policies
+- Uncomment the RLS policies section in `migrations/001_complete_schema_migration.sql`
+- Execute that section in Supabase SQL Editor
 - Creates permissive policies for backend operations
 - Less secure but works with anon key
 

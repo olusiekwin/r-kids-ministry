@@ -72,6 +72,14 @@ export default function ManageUsers() {
       return;
     }
     
+    // Authorization check: Only super admins can create admins
+    if (formData.role === 'admin' && !isSuperAdmin) {
+      toast.error('Insufficient permissions', {
+        description: 'Only super admins can create admin users',
+      });
+      return;
+    }
+    
     try {
       const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim();
       
@@ -82,14 +90,12 @@ export default function ManageUsers() {
         });
       } else {
         // Create user with invitation
-        // Only super admins can create admins
-        const roleToCreate = formData.role === 'admin' && isSuperAdmin ? 'admin' : formData.role;
         await usersApi.create({
           name: fullName,
           firstName: formData.firstName.trim(),
           lastName: formData.lastName.trim(),
           email: formData.email,
-          role: roleToCreate,
+          role: formData.role,
           sendEmail: formData.sendEmail,
           customEmailMessage: formData.customEmailMessage || undefined,
         });
@@ -102,8 +108,9 @@ export default function ManageUsers() {
         description: emailStatus,
       });
     } catch (error: any) {
+      const errorMessage = error.body?.message || error.message || 'An error occurred';
       toast.error('Failed to create user', {
-        description: error.message || 'An error occurred',
+        description: errorMessage,
       });
     }
   };
@@ -247,15 +254,21 @@ export default function ManageUsers() {
 
         {/* Add Button */}
         <div className="mb-4 flex justify-end">
-          <button
-            onClick={() => {
-              setFormData({ firstName: '', lastName: '', email: '', role: activeTab, sendEmail: true, customEmailMessage: '' });
-              setShowAddModal(true);
-            }}
-            className="px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
-          >
-            + Add {activeTab === 'admin' ? 'Admin' : activeTab === 'teacher' ? 'Teacher' : activeTab === 'teen' ? 'Teen' : 'Parent'}
-          </button>
+          {activeTab === 'admin' && !isSuperAdmin ? (
+            <div className="text-sm text-muted-foreground italic">
+              Only super admins can add admin users
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                setFormData({ firstName: '', lastName: '', email: '', role: activeTab, sendEmail: true, customEmailMessage: '' });
+                setShowAddModal(true);
+              }}
+              className="px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              + Add {activeTab === 'admin' ? 'Admin' : activeTab === 'teacher' ? 'Teacher' : activeTab === 'teen' ? 'Teen' : 'Parent'}
+            </button>
+          )}
         </div>
 
         {/* Table */}

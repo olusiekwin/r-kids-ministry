@@ -11,6 +11,7 @@ export function MobileNav() {
   const getNavItems = () => {
     switch (user.role) {
       case 'admin':
+      case 'super_admin':
         return [
           { label: 'Dashboard', path: '/admin' },
           { label: 'Parents', path: '/admin/parents' },

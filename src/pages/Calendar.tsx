@@ -116,13 +116,13 @@ export default function Calendar() {
   };
 
   const getSidebar = () => {
-    if (user?.role === 'admin') return <AdminSidebar />;
+    if (user?.role === 'admin' || user?.role === 'super_admin') return <AdminSidebar />;
     if (user?.role === 'teacher') return <TeacherSidebar />;
     if (user?.role === 'parent') return <ParentSidebar />;
     return null;
   };
 
-  const canCreateSession = user?.role === 'admin' || user?.role === 'teacher';
+  const canCreateSession = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'teacher';
 
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0">

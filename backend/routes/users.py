@@ -3,13 +3,19 @@
 from flask import Blueprint, jsonify, request
 
 from supabase_client import get_supabase, get_default_church_id
+from utils.auth import require_role, is_super_admin, get_current_user
 
 users_bp = Blueprint("users", __name__)
 
 
 @users_bp.get("")
 def list_users():
-    """List users, optionally filtered by role."""
+    """List users, optionally filtered by role. Requires admin or super_admin role."""
+    # Require admin or super_admin to list users
+    current_user, error, status = require_role(["admin", "super_admin"])
+    if error:
+        return error, status
+    
     role = request.args.get("role")
 
     client = get_supabase()
@@ -23,15 +29,23 @@ def list_users():
     try:
         query = client.table("users").select("*").eq("church_id", church_id)
         if role:
-            query = query.eq("role", role.capitalize())
+            # Normalize role for query
+            role_normalized = role.capitalize()
+            if role_normalized.lower() == "super_admin":
+                role_normalized = "SuperAdmin"
+            query = query.eq("role", role_normalized)
 
         res = query.order("created_at", desc=True).execute()
         users = []
         for row in res.data or []:
+            db_role = row.get("role", "").lower()
+            # Normalize role for frontend
+            if db_role == "superadmin":
+                db_role = "super_admin"
             users.append({
                 "id": row["user_id"],
                 "email": row.get("email", ""),
-                "role": row.get("role", "").lower(),
+                "role": db_role,
                 "name": row.get("name"),
                 "isActive": row.get("is_active", True),
                 "mfaEnabled": row.get("mfa_enabled", False),
@@ -45,7 +59,12 @@ def list_users():
 
 @users_bp.post("")
 def create_user():
-    """Create a new user."""
+    """Create a new user. Only super admins can create admins."""
+    # Require admin or super_admin to create users
+    current_user, error, status = require_role(["admin", "super_admin"])
+    if error:
+        return error, status
+    
     data = request.get_json() or {}
     name = data.get("name")
     email = data.get("email")
@@ -53,6 +72,13 @@ def create_user():
     
     if not name or not email:
         return jsonify({"error": "name and email are required"}), 400
+    
+    # Authorization check: Only super admins can create admins
+    if role == "admin" and not is_super_admin(current_user):
+        return jsonify({
+            "error": "Insufficient permissions",
+            "message": "Only super admins can create admin users"
+        }), 403
     
     client = get_supabase()
     if client is None:
@@ -79,11 +105,16 @@ def create_user():
         default_password = "pending_password"  # Temporary, user must set password
         password_hash = hashlib.sha256(default_password.encode()).hexdigest()
         
+        # Normalize role for database (SuperAdmin in DB, super_admin in frontend)
+        db_role = role.capitalize()
+        if db_role.lower() == "super_admin":
+            db_role = "SuperAdmin"
+        
         user_data = {
             "church_id": church_id,
             "name": name,
             "email": email,
-            "role": role.capitalize(),
+            "role": db_role,
             "password_hash": password_hash,
             "is_active": True,
             "mfa_enabled": False,
@@ -94,11 +125,16 @@ def create_user():
             return jsonify({"error": "Failed to create user"}), 500
         
         user = res.data[0]
+        # Normalize role for response
+        user_role = user.get("role", "").lower()
+        if user_role == "superadmin":
+            user_role = "super_admin"
+        
         return jsonify({
             "data": {
                 "id": user["user_id"],
                 "email": user.get("email", ""),
-                "role": user.get("role", "").lower(),
+                "role": user_role,
                 "name": user.get("name"),
                 "isActive": user.get("is_active", True),
             }
@@ -145,7 +181,12 @@ def get_user(user_id: str):
 
 @users_bp.put("/<user_id>")
 def update_user(user_id: str):
-    """Update a user."""
+    """Update a user. Only super admins can update admin roles."""
+    # Require admin or super_admin to update users
+    current_user, error, status = require_role(["admin", "super_admin"])
+    if error:
+        return error, status
+    
     data = request.get_json() or {}
     client = get_supabase()
     if client is None:
@@ -156,11 +197,42 @@ def update_user(user_id: str):
         return jsonify({"error": "No church configured"}), 500
 
     try:
+        # Check if trying to update role to admin
+        if "role" in data:
+            new_role = data.get("role", "").lower()
+            # Only super admins can change roles to/from admin
+            if new_role == "admin" and not is_super_admin(current_user):
+                return jsonify({
+                    "error": "Insufficient permissions",
+                    "message": "Only super admins can assign admin roles"
+                }), 403
+            
+            # Also check if updating an existing admin
+            existing_user_res = (
+                client.table("users")
+                .select("role")
+                .eq("user_id", user_id)
+                .eq("church_id", church_id)
+                .execute()
+            )
+            if existing_user_res.data:
+                existing_role = existing_user_res.data[0].get("role", "").lower()
+                if existing_role == "admin" or existing_role == "superadmin":
+                    if not is_super_admin(current_user):
+                        return jsonify({
+                            "error": "Insufficient permissions",
+                            "message": "Only super admins can modify admin users"
+                        }), 403
+
         update_data = {}
         if "name" in data:
             update_data["name"] = data["name"]
         if "role" in data:
-            update_data["role"] = data["role"].capitalize()
+            # Normalize role for database
+            role = data["role"].capitalize()
+            if role.lower() == "super_admin":
+                role = "SuperAdmin"
+            update_data["role"] = role
         if "email" in data:
             update_data["email"] = data["email"]
 
@@ -184,7 +256,12 @@ def update_user(user_id: str):
 
 @users_bp.post("/<user_id>/suspend")
 def suspend_user(user_id: str):
-    """Suspend a user."""
+    """Suspend a user. Requires admin or super_admin. Only super admins can suspend admins."""
+    # Require admin or super_admin to suspend users
+    current_user, error, status = require_role(["admin", "super_admin"])
+    if error:
+        return error, status
+    
     client = get_supabase()
     if client is None:
         return jsonify({"error": "Supabase not configured"}), 500
@@ -194,6 +271,22 @@ def suspend_user(user_id: str):
         return jsonify({"error": "No church configured"}), 500
 
     try:
+        # Check if trying to suspend an admin (only super admins can do this)
+        target_user_res = (
+            client.table("users")
+            .select("role")
+            .eq("user_id", user_id)
+            .eq("church_id", church_id)
+            .execute()
+        )
+        if target_user_res.data:
+            target_role = target_user_res.data[0].get("role", "").lower()
+            if (target_role == "admin" or target_role == "superadmin") and not is_super_admin(current_user):
+                return jsonify({
+                    "error": "Insufficient permissions",
+                    "message": "Only super admins can suspend admin users"
+                }), 403
+        
         res = (
             client.table("users")
             .update({"is_active": False})
@@ -211,7 +304,12 @@ def suspend_user(user_id: str):
 
 @users_bp.post("/<user_id>/activate")
 def activate_user(user_id: str):
-    """Activate a user."""
+    """Activate a user. Requires admin or super_admin. Only super admins can activate admins."""
+    # Require admin or super_admin to activate users
+    current_user, error, status = require_role(["admin", "super_admin"])
+    if error:
+        return error, status
+    
     client = get_supabase()
     if client is None:
         return jsonify({"error": "Supabase not configured"}), 500
@@ -221,6 +319,22 @@ def activate_user(user_id: str):
         return jsonify({"error": "No church configured"}), 500
 
     try:
+        # Check if trying to activate an admin (only super admins can do this)
+        target_user_res = (
+            client.table("users")
+            .select("role")
+            .eq("user_id", user_id)
+            .eq("church_id", church_id)
+            .execute()
+        )
+        if target_user_res.data:
+            target_role = target_user_res.data[0].get("role", "").lower()
+            if (target_role == "admin" or target_role == "superadmin") and not is_super_admin(current_user):
+                return jsonify({
+                    "error": "Insufficient permissions",
+                    "message": "Only super admins can activate admin users"
+                }), 403
+        
         res = (
             client.table("users")
             .update({"is_active": True})

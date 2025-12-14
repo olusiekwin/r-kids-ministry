@@ -80,8 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setOtpCode(null); // Clear OTP code after successful verification
       lastActivityRef.current = Date.now(); // Reset activity time on login
       
-      // Check if profile needs to be updated (skip for admin)
-      const isAdmin = response.user.role === 'admin';
+      // Check if profile needs to be updated (skip for admin and super_admin)
+      const isAdmin = response.user.role === 'admin' || response.user.role === 'super_admin';
       const needsProfileUpdate = !isAdmin && !response.user.profile_updated && !response.user.profileUpdated;
       if (needsProfileUpdate) {
         // Profile update will be handled in Login component
