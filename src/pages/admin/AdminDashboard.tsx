@@ -66,11 +66,14 @@ export default function AdminDashboard() {
 
 
   return (
-    <div className="min-h-screen bg-background pb-16 md:pb-0">
+    <div className="min-h-screen liquid-bg pb-16 md:pb-0 relative">
+      <div className="absolute inset-0 z-0">
+        {/* Liquid morphing background effect */}
+      </div>
       <Header />
       <AdminSidebar />
       
-      <main className="md:ml-64 container py-8">
+      <main className="md:ml-64 container py-8 relative z-10">
         <div className="mb-8">
           <h1 className="text-2xl font-semibold mb-2">Dashboard</h1>
           <p className="text-muted-foreground">Overview of your ministry management</p>
@@ -84,7 +87,7 @@ export default function AdminDashboard() {
           <>
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <div className="border border-border rounded-lg p-6 bg-background">
+              <div className="glass border border-border/50 rounded-xl p-6 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Parents</p>
@@ -92,7 +95,7 @@ export default function AdminDashboard() {
                   </div>
                   <button
                     onClick={() => navigate('/admin/manage-users?tab=parent')}
-                    className="px-3 py-1.5 text-xs font-medium bg-foreground text-background rounded-md hover:opacity-90"
+                    className="px-3 py-1.5 text-xs font-medium btn-primary rounded-lg"
                   >
                     Manage
                   </button>
@@ -106,7 +109,7 @@ export default function AdminDashboard() {
                   </div>
                   <button
                     onClick={() => navigate('/admin/manage-users?tab=teacher')}
-                    className="px-3 py-1.5 text-xs font-medium bg-foreground text-background rounded-md hover:opacity-90"
+                    className="px-3 py-1.5 text-xs font-medium btn-primary rounded-lg"
                   >
                     Manage
                   </button>
@@ -120,7 +123,7 @@ export default function AdminDashboard() {
                   </div>
                   <button
                     onClick={() => navigate('/admin/manage-users?tab=teen')}
-                    className="px-3 py-1.5 text-xs font-medium bg-foreground text-background rounded-md hover:opacity-90"
+                    className="px-3 py-1.5 text-xs font-medium btn-primary rounded-lg"
                   >
                     Manage
                   </button>
@@ -134,7 +137,7 @@ export default function AdminDashboard() {
                   </div>
                   <button
                     onClick={() => navigate('/admin/pending-approvals')}
-                    className="px-3 py-1.5 text-xs font-medium bg-foreground text-background rounded-md hover:opacity-90"
+                    className="px-3 py-1.5 text-xs font-medium btn-primary rounded-lg"
                   >
                     Review
                   </button>
@@ -143,47 +146,47 @@ export default function AdminDashboard() {
           </div>
 
             {/* Quick Actions */}
-            <div className="border border-border rounded-lg p-6 bg-background">
+            <div className="glass border border-border/50 rounded-xl p-6 shadow-lg">
               <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <button
                   onClick={() => navigate('/admin/manage-users')}
-                  className="p-4 border border-border rounded-lg hover:bg-muted transition-colors text-left"
+                  className="p-4 glass border border-border/50 rounded-xl hover:shadow-xl hover:scale-[1.02] transition-all duration-300 text-left"
                 >
                   <p className="font-medium mb-1">Manage Users</p>
                   <p className="text-sm text-muted-foreground">Create teachers, teens, and parents</p>
                 </button>
                 <button
                   onClick={() => navigate('/admin/children')}
-                  className="p-4 border border-border rounded-lg hover:bg-muted transition-colors text-left"
+                  className="p-4 glass border border-border/50 rounded-xl hover:shadow-xl hover:scale-[1.02] transition-all duration-300 text-left"
                 >
                   <p className="font-medium mb-1">All Children</p>
                   <p className="text-sm text-muted-foreground">View all children added by parents</p>
                 </button>
                 <button
                   onClick={() => navigate('/admin/check-ins')}
-                  className="p-4 border border-border rounded-lg hover:bg-muted transition-colors text-left"
+                  className="p-4 glass border border-border/50 rounded-xl hover:shadow-xl hover:scale-[1.02] transition-all duration-300 text-left"
                 >
                   <p className="font-medium mb-1">Check-Ins & Check-Outs</p>
                   <p className="text-sm text-muted-foreground">Track children received and pickup status</p>
                 </button>
                 <button
                   onClick={() => navigate('/admin/groups')}
-                  className="p-4 border border-border rounded-lg hover:bg-muted transition-colors text-left"
+                  className="p-4 glass border border-border/50 rounded-xl hover:shadow-xl hover:scale-[1.02] transition-all duration-300 text-left"
                 >
                   <p className="font-medium mb-1">Manage Groups</p>
                   <p className="text-sm text-muted-foreground">Assign teachers to groups</p>
                 </button>
               <button
                   onClick={() => navigate('/admin/guardians')}
-                  className="p-4 border border-border rounded-lg hover:bg-muted transition-colors text-left"
-              >
+                  className="p-4 glass border border-border/50 rounded-xl hover:shadow-xl hover:scale-[1.02] transition-all duration-300 text-left"
+                >
                   <p className="font-medium mb-1">Manage Guardians</p>
                   <p className="text-sm text-muted-foreground">View and manage all guardians</p>
               </button>
               <button
                   onClick={() => navigate('/admin/reports')}
-                  className="p-4 border border-border rounded-lg hover:bg-muted transition-colors text-left"
+                  className="p-4 glass border border-border/50 rounded-xl hover:shadow-xl hover:scale-[1.02] transition-all duration-300 text-left"
               >
                   <p className="font-medium mb-1">View Reports</p>
                   <p className="text-sm text-muted-foreground">Attendance and analytics</p>
@@ -193,11 +196,11 @@ export default function AdminDashboard() {
 
             {/* All Groups & Teachers Analytics */}
             {!analyticsLoading && analytics.length > 0 && (
-              <div className="border border-border rounded-lg p-6 bg-background mt-8">
+              <div className="glass border border-border/50 rounded-xl p-6 shadow-lg mt-8">
                 <h2 className="text-lg font-semibold mb-4">Groups & Teachers Analytics</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {analytics.map((group) => (
-                    <div key={group.group_id} className="border border-border rounded-lg p-4 bg-muted/30">
+                    <div key={group.group_id} className="glass border border-border/50 rounded-xl p-4 hover:shadow-lg hover:scale-[1.02] transition-all duration-300 backdrop-blur-sm">
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="font-semibold text-foreground">{group.group_name}</h3>
                         <span className="text-xs text-muted-foreground">{group.teacher_name || 'Unassigned'}</span>

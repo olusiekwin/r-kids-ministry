@@ -27,22 +27,22 @@ export function AdminSidebar() {
   };
 
   return (
-    <aside className="hidden md:flex md:flex-col md:w-64 md:fixed md:inset-y-0 md:left-0 md:pt-16 md:z-30 border-r border-border bg-background">
+    <aside className="hidden md:flex md:flex-col md:w-64 md:fixed md:inset-y-0 md:left-0 md:pt-16 md:z-30 border-r border-border/50 glass">
       <div className="flex-1 flex flex-col overflow-y-auto">
         <nav className="flex-1 px-4 py-4 space-y-1">
           {menuItems.map((item) => (
             <button
               key={item.path}
               onClick={() => navigate(item.path)}
-              className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                 isActive(item.path)
-                  ? 'bg-foreground text-background'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  ? 'bg-gradient-to-r from-primary to-primary/80 text-white shadow-lg scale-[1.02]'
+                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground hover:scale-[1.01]'
               }`}
             >
               <span className="text-left">{item.label}</span>
               {item.badge !== undefined && item.badge > 0 && (
-                <span className="bg-background text-foreground px-2 py-0.5 rounded-full text-xs font-semibold">
+                <span className="bg-primary/20 text-primary px-2 py-0.5 rounded-full text-xs font-semibold border border-primary/30">
                   {item.badge}
                 </span>
               )}

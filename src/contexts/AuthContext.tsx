@@ -26,7 +26,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
     // Load user from localStorage on init
     const stored = localStorage.getItem('user');
-    return stored ? JSON.parse(stored) : null;
+    const parsed = stored ? JSON.parse(stored) : null;
+    // Ensure password_set fields are available
+    if (parsed && !parsed.passwordSet && !parsed.password_set) {
+      parsed.password_set = false;
+      parsed.passwordSet = false;
+    }
+    return parsed;
   });
   const [pendingMFA, setPendingMFA] = useState(false);
   const [tempToken, setTempToken] = useState<string | null>(null);

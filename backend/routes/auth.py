@@ -44,7 +44,7 @@ def login():
             if church_id:
                 res = (
                     client.table("users")
-                    .select("user_id, email, role, name, profile_updated")
+                    .select("user_id, email, role, name, profile_updated, password_set")
                     .eq("church_id", church_id)
                     .eq("email", email)
                     .limit(1)
@@ -58,6 +58,7 @@ def login():
                         "role": db_user.get("role", "").lower().replace("superadmin", "super_admin") if db_user.get("role") else "parent",
                         "name": db_user.get("name") or email.split("@")[0].title(),
                         "profile_updated": db_user.get("profile_updated", False),
+                        "password_set": db_user.get("password_set", False),
                     }
         except Exception as exc:
             print(f"⚠️ Error fetching user from Supabase: {exc}")
@@ -138,7 +139,7 @@ def verify_mfa():
                 if church_id:
                     res = (
                         client.table("users")
-                        .select("user_id, email, role, name, phone, address, profile_updated")
+                        .select("user_id, email, role, name, phone, address, profile_updated, password_set")
                         .eq("church_id", church_id)
                         .eq("email", email)
                         .limit(1)
@@ -154,6 +155,7 @@ def verify_mfa():
                             "phone": db_user.get("phone"),
                             "address": db_user.get("address"),
                             "profile_updated": db_user.get("profile_updated", False),
+                            "password_set": db_user.get("password_set", False),
                         }
                         users_db[email] = user
             except Exception as exc:
@@ -201,7 +203,7 @@ def set_password():
             if church_id:
                 res = (
                     client.table("users")
-                    .select("user_id, email, role, name, profile_updated")
+                    .select("user_id, email, role, name, profile_updated, password_set")
                     .eq("church_id", church_id)
                     .eq("email", email)
                     .limit(1)
@@ -215,6 +217,7 @@ def set_password():
                         "role": db_user.get("role", "").lower().replace("superadmin", "super_admin") if db_user.get("role") else "parent",
                         "name": db_user.get("name") or email.split("@")[0].title(),
                         "profile_updated": db_user.get("profile_updated", False),
+                        "password_set": db_user.get("password_set", False),
                     }
         except Exception as exc:
             print(f"⚠️ Error fetching user from Supabase: {exc}")

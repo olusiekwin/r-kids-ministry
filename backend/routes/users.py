@@ -118,6 +118,7 @@ def create_user():
             "password_hash": password_hash,
             "is_active": True,
             "mfa_enabled": False,
+            "password_set": False,  # New admins must change password on first login
         }
         
         res = client.table("users").insert(user_data).execute()
@@ -470,11 +471,14 @@ def change_password():
             if stored_hash and stored_hash != "pending_password" and current_hash != stored_hash:
                 return jsonify({"error": "Current password is incorrect"}), 401
         
-        # Update password
+        # Update password and mark as set
         new_hash = hashlib.sha256(new_password.encode()).hexdigest()
         update_res = (
             client.table("users")
-            .update({"password_hash": new_hash})
+            .update({
+                "password_hash": new_hash,
+                "password_set": True,  # Mark password as set
+            })
             .eq("user_id", user_id)
             .eq("church_id", church_id)
             .execute()

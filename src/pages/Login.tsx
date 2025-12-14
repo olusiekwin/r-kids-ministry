@@ -140,18 +140,30 @@ export default function Login() {
     setLoading(false);
 
     if (success) {
-      // Check if user needs to update profile (skip for admin)
+      // Check if user needs to change password (for newly created admins)
       const userStr = localStorage.getItem('user');
       const user = userStr ? JSON.parse(userStr) : null;
-      const isAdmin = user?.role === 'admin';
-      const needsProfileUpdate = !isAdmin && user && !user.profile_updated && !user.profileUpdated;
       
-      // Use the actual user role from the account - this is required!
       if (!user || !user.role) {
         console.error('User or user role not found after login');
         setError('Failed to determine user role. Please try again.');
         return;
       }
+      
+      // Check if password needs to be changed (for newly created admins)
+      const needsPasswordChange = (user.role === 'admin' || user.role === 'super_admin') && 
+                                   !user.passwordSet && 
+                                   !user.password_set;
+      
+      if (needsPasswordChange) {
+        navigate('/change-password', { replace: true });
+        return;
+      }
+      
+      // Check if user needs to update profile (skip for admin/super_admin)
+      const isAdmin = user.role === 'admin' || user.role === 'super_admin';
+      const needsProfileUpdate = !isAdmin && user && !user.profile_updated && !user.profileUpdated;
+      
       const userRole = user.role;
       
       if (needsProfileUpdate) {

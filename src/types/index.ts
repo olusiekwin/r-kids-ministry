@@ -11,6 +11,9 @@ export interface User {
   phone?: string;
   address?: string;
   profileUpdated?: boolean;
+  profile_updated?: boolean;
+  passwordSet?: boolean;
+  password_set?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

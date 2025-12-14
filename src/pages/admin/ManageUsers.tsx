@@ -196,11 +196,14 @@ export default function ManageUsers() {
     : parents;
 
   return (
-    <div className="min-h-screen bg-background pb-16 md:pb-0">
+    <div className="min-h-screen liquid-bg pb-16 md:pb-0 relative">
+      <div className="absolute inset-0 z-0">
+        {/* Liquid morphing background effect */}
+      </div>
       <Header />
       <AdminSidebar />
       
-      <main className="md:ml-64 container py-8 px-4 md:px-6 lg:px-8">
+      <main className="md:ml-64 container py-8 px-4 md:px-6 lg:px-8 relative z-10">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold mb-2">Manage Users</h1>
           <p className="text-muted-foreground">Create and manage teacher, teen, and parent accounts</p>
@@ -264,7 +267,7 @@ export default function ManageUsers() {
                 setFormData({ firstName: '', lastName: '', email: '', role: activeTab, sendEmail: true, customEmailMessage: '' });
                 setShowAddModal(true);
               }}
-              className="px-4 py-2 bg-foreground text-background rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
+              className="px-4 py-2 btn-primary text-sm font-medium"
             >
               + Add {activeTab === 'admin' ? 'Admin' : activeTab === 'teacher' ? 'Teacher' : activeTab === 'teen' ? 'Teen' : 'Parent'}
             </button>
@@ -281,7 +284,7 @@ export default function ManageUsers() {
             <p className="text-muted-foreground">No {activeTab}s found</p>
           </div>
         ) : (
-          <div className="border border-border rounded-lg overflow-hidden bg-background shadow-sm">
+          <div className="border border-border/50 rounded-xl overflow-hidden glass shadow-lg">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-muted/50">
@@ -400,8 +403,8 @@ export default function ManageUsers() {
 
         {/* Add Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-background border border-border rounded-lg p-6 max-w-md w-full">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="glass-strong border border-border/50 rounded-2xl p-6 max-w-md w-full shadow-2xl">
               <h2 className="text-xl font-semibold mb-4">
                 Add {activeTab === 'admin' ? 'Admin' : activeTab === 'teacher' ? 'Teacher' : activeTab === 'teen' ? 'Teen' : 'Parent'}
               </h2>
@@ -414,7 +417,7 @@ export default function ManageUsers() {
                       value={formData.firstName}
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                       required
-                      className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                      className="w-full px-3 py-2 glass border border-border/50 rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                       placeholder="First name"
                     />
                   </div>
@@ -425,7 +428,7 @@ export default function ManageUsers() {
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                       required
-                      className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                      className="w-full px-3 py-2 glass border border-border/50 rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                       placeholder="Last name"
                     />
                   </div>
@@ -460,7 +463,7 @@ export default function ManageUsers() {
                       value={formData.customEmailMessage}
                       onChange={(e) => setFormData({ ...formData, customEmailMessage: e.target.value })}
                       rows={4}
-                      className="w-full px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                      className="w-full px-3 py-2 glass border border-border/50 rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                       placeholder="Leave blank to use default invitation message..."
                     />
                   </div>
@@ -475,7 +478,7 @@ export default function ManageUsers() {
                   <button
                     type="button"
                     onClick={() => setShowAddModal(false)}
-                    className="px-4 py-2 border border-border rounded-md font-medium hover:bg-muted transition-colors"
+                    className="px-4 py-2 glass border border-border/50 rounded-xl font-medium hover:shadow-lg hover:scale-[1.02] transition-all duration-200"
                   >
                     Cancel
                   </button>

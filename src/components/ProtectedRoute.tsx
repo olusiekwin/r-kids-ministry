@@ -25,6 +25,16 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     return <Navigate to="/login" state={{ from: location, role: requiredRole }} replace />;
   }
 
+  // Check if password needs to be changed (for newly created admins)
+  const needsPasswordChange = (user.role === 'admin' || user.role === 'super_admin') && 
+                               !user.passwordSet && 
+                               !user.password_set &&
+                               location.pathname !== '/set-password' &&
+                               location.pathname !== '/change-password';
+  if (needsPasswordChange) {
+    return <Navigate to="/change-password" replace />;
+  }
+
   // Check if profile needs updating (skip for admin/super_admin and if already on update-profile page)
   const needsProfileUpdate = !user.profileUpdated && !user.profile_updated;
   if (needsProfileUpdate && user.role !== 'admin' && user.role !== 'super_admin' && location.pathname !== '/update-profile') {

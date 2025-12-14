@@ -158,7 +158,7 @@ export function Header() {
         </div>
       )}
       
-      <header className="border-b border-border bg-background sticky top-0 z-50 backdrop-blur-sm bg-background/95">
+      <header className="border-b border-border/50 glass-strong sticky top-0 z-50">
         <div className="container flex items-center justify-between py-3">
           {/* Left side: Logo and Role */}
           <div className="flex items-center gap-4">
