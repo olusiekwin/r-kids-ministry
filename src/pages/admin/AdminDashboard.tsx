@@ -13,6 +13,8 @@ type SortOrder = 'asc' | 'desc';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'super_admin';
   const [stats, setStats] = useState({
     parents: 0,
     teachers: 0,
@@ -150,6 +152,21 @@ export default function AdminDashboard() {
             <div className="glass border border-border/50 rounded-xl p-6 shadow-lg">
               <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {isSuperAdmin && (
+                  <button
+                    onClick={() => navigate('/admin/manage-users?tab=admin')}
+                    className="p-4 glass border-2 border-blue-300 bg-blue-50/50 rounded-xl hover:shadow-xl hover:scale-[1.02] transition-all duration-300 text-left relative"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <Shield className="w-5 h-5 text-blue-600" />
+                      <p className="font-semibold text-blue-900">Manage Admins</p>
+                      <span className="ml-auto px-2 py-0.5 bg-blue-200 text-blue-800 rounded-full text-xs font-semibold">
+                        Super Admin
+                      </span>
+                    </div>
+                    <p className="text-sm text-blue-700">Create and manage admin users</p>
+                  </button>
+                )}
                 <button
                   onClick={() => navigate('/admin/manage-users')}
                   className="p-4 glass border border-border/50 rounded-xl hover:shadow-xl hover:scale-[1.02] transition-all duration-300 text-left"

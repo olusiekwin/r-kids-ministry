@@ -12,9 +12,21 @@ type UserType = 'teacher' | 'teen' | 'parent' | 'admin';
 
 export default function ManageUsers() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user: currentUser } = useAuth();
   const isSuperAdmin = currentUser?.role === 'super_admin';
-  const [activeTab, setActiveTab] = useState<UserType>('teacher');
+  
+  // Get initial tab from URL params, default to 'teacher' or 'admin' if super admin
+  const urlTab = searchParams.get('tab') as UserType | null;
+  const defaultTab = isSuperAdmin && urlTab === 'admin' ? 'admin' : urlTab || 'teacher';
+  const [activeTab, setActiveTab] = useState<UserType>(defaultTab);
+  
+  // Update URL when tab changes
+  useEffect(() => {
+    if (activeTab) {
+      setSearchParams({ tab: activeTab });
+    }
+  }, [activeTab, setSearchParams]);
   const [teachers, setTeachers] = useState<User[]>([]);
   const [teens, setTeens] = useState<User[]>([]);
   const [parents, setParents] = useState<Parent[]>([]);
