@@ -12,8 +12,12 @@ export function AdminSidebar() {
   const location = useLocation();
 
   const menuItems: SidebarItem[] = [
-    { label: 'Parent Search & Management', path: '/admin' },
+    { label: 'Dashboard', path: '/admin/parents' },
+    { label: 'Manage Users', path: '/admin/manage-users' },
+    { label: 'Session Management', path: '/admin/sessions' },
+    { label: 'Session Analytics', path: '/admin/session-analytics' },
     { label: 'Sessions Calendar', path: '/calendar' },
+    { label: 'Reports', path: '/admin/reports' },
   ];
 
   const isActive = (path: string) => {
