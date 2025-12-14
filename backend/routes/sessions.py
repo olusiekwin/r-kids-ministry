@@ -89,6 +89,9 @@ def list_sessions():
                 "location": row.get("location"),
                 "is_recurring": row.get("is_recurring", False),
                 "recurrence_pattern": row.get("recurrence_pattern"),
+                "status": row.get("status", "scheduled"),
+                "started_at": row.get("started_at"),
+                "ended_at": row.get("ended_at"),
                 "created_at": row.get("created_at"),
             })
         
@@ -130,6 +133,7 @@ def create_session():
             "location": data.get("location"),
             "is_recurring": data.get("is_recurring", False),
             "recurrence_pattern": data.get("recurrence_pattern"),
+            "status": data.get("status", "scheduled"),  # Default to scheduled
             "created_by": data.get("created_by") or data.get("createdBy"),  # From auth token in real app
         }
         
@@ -212,6 +216,9 @@ def get_session(session_id: str):
                 "is_recurring": row.get("is_recurring", False),
                 "recurrence_pattern": row.get("recurrence_pattern"),
                 "gender_restriction": row.get("gender_restriction"),
+                "status": row.get("status", "scheduled"),
+                "started_at": row.get("started_at"),
+                "ended_at": row.get("ended_at"),
             }
         })
     except Exception as exc:  # pragma: no cover
@@ -299,6 +306,82 @@ def delete_session(session_id: str):
     except Exception as exc:  # pragma: no cover
         print(f"⚠️ Error deleting session: {exc}")
         return jsonify({"error": "Failed to delete session"}), 500
+
+
+@sessions_bp.post("/<session_id>/start")
+def start_session(session_id: str):
+    """Start a session - marks it as active."""
+    from utils.auth import require_role
+    current_user, error, status = require_role(["admin", "super_admin", "teacher"])
+    if error:
+        return error, status
+    
+    client = get_supabase()
+    if client is None:
+        return jsonify({"error": "Supabase not configured"}), 500
+
+    church_id = get_default_church_id()
+    if church_id is None:
+        return jsonify({"error": "No church configured"}), 500
+
+    try:
+        from datetime import datetime
+        res = (
+            client.table("sessions")
+            .update({
+                "status": "active",
+                "started_at": datetime.utcnow().isoformat(),
+            })
+            .eq("session_id", session_id)
+            .eq("church_id", church_id)
+            .execute()
+        )
+        
+        if not res.data:
+            return jsonify({"error": "Session not found"}), 404
+        
+        return get_session(session_id)
+    except Exception as exc:
+        print(f"⚠️ Error starting session: {exc}")
+        return jsonify({"error": "Failed to start session"}), 500
+
+
+@sessions_bp.post("/<session_id>/end")
+def end_session(session_id: str):
+    """End a session - marks it as ended."""
+    from utils.auth import require_role
+    current_user, error, status = require_role(["admin", "super_admin", "teacher"])
+    if error:
+        return error, status
+    
+    client = get_supabase()
+    if client is None:
+        return jsonify({"error": "Supabase not configured"}), 500
+
+    church_id = get_default_church_id()
+    if church_id is None:
+        return jsonify({"error": "No church configured"}), 500
+
+    try:
+        from datetime import datetime
+        res = (
+            client.table("sessions")
+            .update({
+                "status": "ended",
+                "ended_at": datetime.utcnow().isoformat(),
+            })
+            .eq("session_id", session_id)
+            .eq("church_id", church_id)
+            .execute()
+        )
+        
+        if not res.data:
+            return jsonify({"error": "Session not found"}), 404
+        
+        return get_session(session_id)
+    except Exception as exc:
+        print(f"⚠️ Error ending session: {exc}")
+        return jsonify({"error": "Failed to end session"}), 500
 
 
 @sessions_bp.get("/<session_id>/eligible-children")

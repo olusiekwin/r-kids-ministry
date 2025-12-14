@@ -890,6 +890,18 @@ export const sessionsApi = {
   getEligibleChildren: async (sessionId: string) => {
     return apiRequest<any[]>(API_ENDPOINTS.SESSIONS.ELIGIBLE_CHILDREN(sessionId));
   },
+
+  startSession: async (sessionId: string) => {
+    return apiRequest<any>(API_ENDPOINTS.SESSIONS.START(sessionId), {
+      method: 'POST',
+    });
+  },
+
+  endSession: async (sessionId: string) => {
+    return apiRequest<any>(API_ENDPOINTS.SESSIONS.END(sessionId), {
+      method: 'POST',
+    });
+  },
 };
 
 // Session Bookings API

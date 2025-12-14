@@ -57,15 +57,26 @@ Get these from: Supabase Dashboard → Settings → API
 
 ## Migration Files
 
-**Single Consolidated Migration:**
-- `001_complete_schema_migration.sql` - Complete schema migration including:
-  - User profile fields (name, phone, address, status)
-  - Sessions and session bookings tables
-  - Super admin role support
-  - Validation constraints
-  - Notifications enhancements
-  - Performance indexes
-  - RLS policies (commented - uncomment if needed)
+**Run migrations in order:**
+
+1. **`001_complete_schema_migration.sql`** - Complete schema migration including:
+   - User profile fields (name, phone, address, status)
+   - Sessions and session bookings tables
+   - Super admin role support
+   - Validation constraints
+   - Notifications enhancements
+   - Performance indexes
+   - RLS policies (commented - uncomment if needed)
+
+2. **`002_add_session_status.sql`** - Add session status tracking:
+   - Session status field (scheduled, active, ended, cancelled)
+   - Started_at and ended_at timestamps
+   - Indexes for performance
+
+3. **`003_create_super_admin.sql`** - Create super admin user:
+   - Creates superadmin@rkids.church account
+   - Password: password123 (change in production!)
+   - Run this to create your first super admin
 
 ## Troubleshooting
 

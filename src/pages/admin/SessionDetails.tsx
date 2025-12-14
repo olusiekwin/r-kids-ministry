@@ -42,6 +42,9 @@ interface Session {
   session_type: string;
   location?: string;
   gender_restriction?: 'Male' | 'Female';
+  status?: 'scheduled' | 'active' | 'ended' | 'cancelled';
+  started_at?: string;
+  ended_at?: string;
 }
 
 interface EligibleChild {
@@ -141,6 +144,51 @@ export default function SessionDetails() {
     } catch (error: any) {
       console.error('Failed to load eligible children:', error);
       // Don't show toast, it's optional
+    }
+  };
+
+  const handleStartSession = async () => {
+    if (!sessionId) return;
+    
+    try {
+      setActionLoading('start');
+      await sessionsApi.startSession(sessionId);
+      await loadSessionDetails();
+      toast.success('Session started successfully!', {
+        description: 'Children can now check in to this session',
+      });
+    } catch (error: any) {
+      console.error('Failed to start session:', error);
+      toast.error('Failed to start session', {
+        description: error.message || 'Please try again.',
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleEndSession = async () => {
+    if (!sessionId) return;
+    
+    const confirmed = window.confirm(
+      'Are you sure you want to end this session? This will mark the session as completed.'
+    );
+    if (!confirmed) return;
+    
+    try {
+      setActionLoading('end');
+      await sessionsApi.endSession(sessionId);
+      await loadSessionDetails();
+      toast.success('Session ended successfully!', {
+        description: 'Session has been marked as completed',
+      });
+    } catch (error: any) {
+      console.error('Failed to end session:', error);
+      toast.error('Failed to end session', {
+        description: error.message || 'Please try again.',
+      });
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -250,9 +298,9 @@ export default function SessionDetails() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background pb-16 md:pb-0">
+      <div className="min-h-screen liquid-bg pb-16 md:pb-0 relative">
         <Header />
-        <main className="container py-8 px-4 md:px-6 lg:px-8 max-w-7xl mx-auto">
+        <main className="container py-8 px-4 md:px-6 lg:px-8 max-w-7xl mx-auto relative z-10">
           <div className="text-center py-12">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-muted-foreground" />
             <p className="text-muted-foreground">Loading session details...</p>
@@ -286,7 +334,7 @@ export default function SessionDetails() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-16 md:pb-0">
+    <div className="min-h-screen liquid-bg pb-16 md:pb-0 relative">
       <Header />
       
       <main className="container py-8 px-4 md:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -303,11 +351,11 @@ export default function SessionDetails() {
         </nav>
 
         {/* Session Header */}
-        <div className="bg-background border-2 border-border rounded-xl p-6 mb-6 shadow-lg">
+        <div className="glass border-2 border-border/50 rounded-xl p-6 mb-6 shadow-lg relative z-10">
           <div className="flex items-start justify-between mb-4">
-            <div>
+            <div className="flex-1">
               <h1 className="text-3xl font-bold text-foreground mb-2">{session.title}</h1>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="inline-block px-3 py-1 bg-muted rounded-full text-sm font-medium">
                   {session.session_type}
                 </span>
@@ -316,8 +364,64 @@ export default function SessionDetails() {
                     {session.gender_restriction} Only
                   </span>
                 )}
+                {session.status && (
+                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                    session.status === 'active' 
+                      ? 'bg-green-100 text-green-800 border border-green-300'
+                      : session.status === 'ended'
+                      ? 'bg-gray-100 text-gray-800 border border-gray-300'
+                      : session.status === 'cancelled'
+                      ? 'bg-red-100 text-red-800 border border-red-300'
+                      : 'bg-yellow-100 text-yellow-800 border border-yellow-300'
+                  }`}>
+                    {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
+                  </span>
+                )}
               </div>
             </div>
+            {/* Start/End Session Buttons */}
+            {(user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'teacher') && (
+              <div className="flex gap-2 ml-4">
+                {session.status === 'scheduled' && (
+                  <button
+                    onClick={handleStartSession}
+                    disabled={actionLoading === 'start'}
+                    className="px-4 py-2 btn-success rounded-xl flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {actionLoading === 'start' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Starting...
+                      </>
+                    ) : (
+                      <>
+                        <LogIn className="w-4 h-4" />
+                        Start Session
+                      </>
+                    )}
+                  </button>
+                )}
+                {session.status === 'active' && (
+                  <button
+                    onClick={handleEndSession}
+                    disabled={actionLoading === 'end'}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl flex items-center gap-2 disabled:opacity-50 transition-all shadow-lg"
+                  >
+                    {actionLoading === 'end' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Ending...
+                      </>
+                    ) : (
+                      <>
+                        <LogOut className="w-4 h-4" />
+                        End Session
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
@@ -370,7 +474,7 @@ export default function SessionDetails() {
 
         {/* Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-background border-2 border-border rounded-lg p-4">
+          <div className="glass border-2 border-border/50 rounded-xl p-4 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-muted-foreground">Total Bookings</div>
@@ -380,7 +484,7 @@ export default function SessionDetails() {
             </div>
           </div>
 
-          <div className="bg-background border-2 border-border rounded-lg p-4">
+          <div className="glass border-2 border-border/50 rounded-xl p-4 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-muted-foreground">Checked In</div>
@@ -390,7 +494,7 @@ export default function SessionDetails() {
             </div>
           </div>
 
-          <div className="bg-background border-2 border-border rounded-lg p-4">
+          <div className="glass border-2 border-border/50 rounded-xl p-4 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-muted-foreground">Checked Out</div>
@@ -400,7 +504,7 @@ export default function SessionDetails() {
             </div>
           </div>
 
-          <div className="bg-background border-2 border-border rounded-lg p-4">
+          <div className="glass border-2 border-border/50 rounded-xl p-4 shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-muted-foreground">Attendance Rate</div>
@@ -413,7 +517,7 @@ export default function SessionDetails() {
 
         {/* Eligible Children (Auto-fetched based on session preferences) */}
         {eligibleChildren.length > 0 && (
-          <div className="bg-background border-2 border-border rounded-xl p-6 shadow-lg mb-6">
+          <div className="glass border-2 border-border/50 rounded-xl p-6 shadow-lg mb-6 relative z-10">
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               <Users className="w-5 h-5" />
               Eligible Children ({eligibleChildren.length})
@@ -522,7 +626,7 @@ export default function SessionDetails() {
         )}
 
         {/* Bookings List with Full Child Details */}
-        <div className="bg-background border-2 border-border rounded-xl p-6 shadow-lg">
+        <div className="glass border-2 border-border/50 rounded-xl p-6 shadow-lg relative z-10">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5" />
@@ -704,12 +808,12 @@ export default function SessionDetails() {
               {bookings.map((booking) => (
                 <div
                   key={booking.id}
-                  className={`border-2 rounded-lg p-5 hover:shadow-md transition-all ${
+                  className={`border-2 rounded-xl p-5 hover:shadow-lg hover:scale-[1.01] transition-all ${
                     booking.status === 'checked_in'
-                      ? 'border-green-500/50 bg-green-50/30'
+                      ? 'border-green-500/50 glass bg-green-50/20'
                       : booking.status === 'checked_out'
-                      ? 'border-blue-500/50 bg-blue-50/30'
-                      : 'border-border bg-background'
+                      ? 'border-blue-500/50 glass bg-blue-50/20'
+                      : 'border-border/50 glass'
                   }`}
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">

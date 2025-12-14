@@ -39,10 +39,17 @@ CREATE TABLE IF NOT EXISTS sessions (
     is_recurring BOOLEAN DEFAULT false,
     recurrence_pattern VARCHAR(100),
     gender_restriction VARCHAR(20) CHECK (gender_restriction IN ('Male', 'Female', NULL)),
+    status VARCHAR(20) DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'active', 'ended', 'cancelled')),
+    started_at TIMESTAMP,
+    ended_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(church_id, title, session_date, start_time)
 );
+
+COMMENT ON COLUMN sessions.status IS 'Session status: scheduled, active, ended, or cancelled';
+COMMENT ON COLUMN sessions.started_at IS 'Timestamp when session was started';
+COMMENT ON COLUMN sessions.ended_at IS 'Timestamp when session was ended';
 
 COMMENT ON COLUMN sessions.gender_restriction IS 'Optional gender restriction for session (Male/Female only)';
 
@@ -239,6 +246,8 @@ CREATE INDEX IF NOT EXISTS idx_sessions_church_id ON sessions(church_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_date ON sessions(session_date);
 CREATE INDEX IF NOT EXISTS idx_sessions_group_id ON sessions(group_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_teacher_id ON sessions(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status);
+CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON sessions(started_at);
 
 -- Session bookings indexes
 CREATE INDEX IF NOT EXISTS idx_session_bookings_session_id ON session_bookings(session_id);
